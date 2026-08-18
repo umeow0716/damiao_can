@@ -344,13 +344,7 @@ void CANHelper::configure(const CANInterfaceConfig& config) const {
         args.insert(args.end(), {"sample-point", format_ratio(config.sample_point)});
     }
     if (config.restart_ms.has_value()) {
-        args.insert(
-            args.end(),
-            {
-                "restart-ms",
-                std::to_string(*config.restart_ms)
-            }
-        );
+        args.insert(args.end(), {"restart-ms", std::to_string(*config.restart_ms)});
     }
 
     if (config.fd_enabled) {
