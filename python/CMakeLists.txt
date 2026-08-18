@@ -115,6 +115,5 @@ set_target_properties(damiao_can_python PROPERTIES OUTPUT_NAME "damiao_can")
 target_link_libraries(damiao_can_python PRIVATE DamiaoCAN::damiao_can)
 install(TARGETS damiao_can_python LIBRARY DESTINATION "damiao_can")
 install(FILES damiao_can/__init__.py damiao_can/__init__.pyi
-              damiao_can/__main__.py damiao_can/cli.py
-              damiao_can/damiao_can.pyi damiao_can/py.typed
-        DESTINATION "damiao_can")
+              damiao_can/__main__.py damiao_can/cli.py damiao_can/damiao_can.pyi
+              damiao_can/py.typed DESTINATION "damiao_can")

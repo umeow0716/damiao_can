@@ -58,13 +58,15 @@ def _parse_rate(value: str) -> int:
         try:
             number = float(text[:-1])
         except ValueError as exc:
-            raise argparse.ArgumentTypeError(f"invalid bitrate {value!r}") from exc
+            raise argparse.ArgumentTypeError(
+                f"invalid bitrate {value!r}") from exc
         result = int(number * multipliers[text[-1]])
     else:
         try:
             result = int(text, 0)
         except ValueError as exc:
-            raise argparse.ArgumentTypeError(f"invalid bitrate {value!r}") from exc
+            raise argparse.ArgumentTypeError(
+                f"invalid bitrate {value!r}") from exc
 
     if result <= 0:
         raise argparse.ArgumentTypeError("bitrate must be greater than zero")
@@ -153,7 +155,8 @@ def _change_motor_baudrate(api: Any, socket: Any, send_id: int, baudrate: int) -
             ]
         ),
     )
-    _write_frame(socket, write, f"write baudrate for motor {_format_id(send_id)}")
+    _write_frame(
+        socket, write, f"write baudrate for motor {_format_id(send_id)}")
     time.sleep(0.020)
 
     # DAMIAO requires the motor to be disabled before saving parameters to flash.
@@ -177,7 +180,8 @@ def _change_motor_baudrate(api: Any, socket: Any, send_id: int, baudrate: int) -
             ]
         ),
     )
-    _write_frame(socket, save, f"save baudrate for motor {_format_id(send_id)}")
+    _write_frame(
+        socket, save, f"save baudrate for motor {_format_id(send_id)}")
     time.sleep(0.040)
 
 
@@ -284,7 +288,8 @@ def _cmd_drop_test(args: argparse.Namespace) -> int:
     except KeyboardInterrupt:
         pass
     finally:
-        _render_progress(min(time.monotonic() - start, args.duration), args.duration, cycles)
+        _render_progress(min(time.monotonic() - start,
+                         args.duration), args.duration, cycles)
         if sys.stdout.isatty():
             sys.stdout.write("\n")
 
@@ -386,7 +391,8 @@ Examples:
   python -m damiao_can drop-test -i can0 --from 0x01 --to 0x08
 """,
     )
-    subparsers = parser.add_subparsers(dest="command", metavar="COMMAND", required=True)
+    subparsers = parser.add_subparsers(
+        dest="command", metavar="COMMAND", required=True)
 
     set_zero = subparsers.add_parser(
         "set-zero",
