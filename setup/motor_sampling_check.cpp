@@ -15,10 +15,10 @@
 #include <algorithm>
 #include <chrono>
 #include <csignal>
+#include <damiao_can/can/socket/damiao_can.hpp>
+#include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <iomanip>
 #include <iostream>
-#include <openarm/can/socket/openarm.hpp>
-#include <openarm/damiao_motor/dm_motor_constants.hpp>
 #include <string>
 #include <thread>
 #include <vector>
@@ -35,12 +35,12 @@ void print_usage(const char* program_name) {
     std::cout << "Example: " << program_name << " --all 500 can0 -fd" << std::endl;
 }
 
-void display_stats(const std::vector<openarm::damiao_motor::Motor>& motors, double rtt_us,
+void display_stats(const std::vector<damiao_can::damiao_motor::Motor>& motors, double rtt_us,
                    double target_hz, double actual_hz, uint64_t count) {
     std::cout << "\033[2J\033[H";
     std::cout << "====================================================================="
               << std::endl;
-    std::cout << "          OpenArm Multi-Motor High-Speed Monitor (1s Refresh)        "
+    std::cout << "          DamiaoCAN Multi-Motor High-Speed Monitor (1s Refresh)        "
               << std::endl;
     std::cout << "====================================================================="
               << std::endl;
@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
 
     std::vector<uint32_t> send_ids;
     std::vector<uint32_t> recv_ids;
-    std::vector<openarm::damiao_motor::MotorType> types;
+    std::vector<damiao_can::damiao_motor::MotorType> types;
     double target_hz = 0;
     std::string interface = "can0";
     bool use_fd = false;
@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
         for (uint32_t i = 1; i <= 8; ++i) {
             send_ids.push_back(i);
             recv_ids.push_back(i + 0x10);
-            types.push_back(openarm::damiao_motor::MotorType::DM4310);
+            types.push_back(damiao_can::damiao_motor::MotorType::DM4310);
         }
         arg_idx++;
     } else {
@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
         }
         send_ids.push_back(std::stoul(argv[arg_idx++]));
         recv_ids.push_back(std::stoul(argv[arg_idx++]));
-        types.push_back(openarm::damiao_motor::MotorType::DM4310);
+        types.push_back(damiao_can::damiao_motor::MotorType::DM4310);
     }
 
     if (arg_idx < argc) {
@@ -133,14 +133,14 @@ int main(int argc, char* argv[]) {
     }
 
     try {
-        openarm::can::socket::OpenArm openarm(interface, use_fd);
+        damiao_can::can::socket::DamiaoCAN damiao_can(interface, use_fd);
 
-        openarm.init_arm_motors(types, send_ids, recv_ids);
-        openarm.set_callback_mode_all(openarm::damiao_motor::CallbackMode::STATE);
+        damiao_can.init_motors(types, send_ids, recv_ids);
+        damiao_can.set_callback_mode_all(damiao_can::damiao_motor::CallbackMode::STATE);
 
         std::cout << "Initializing " << send_ids.size() << " motor(s)... Target: " << target_hz
                   << "Hz on " << interface << std::endl;
-        openarm.enable_all();
+        damiao_can.enable_all();
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
         auto cycle_duration = std::chrono::nanoseconds(static_cast<int64_t>(1e9 / target_hz));
@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
         double latest_rtt_us = 0;
         double actual_hz = 0;
 
-        std::vector<openarm::damiao_motor::MITParam> zero_cmd(send_ids.size(), {0, 0, 0, 0, 0});
+        std::vector<damiao_can::damiao_motor::MITParam> zero_cmd(send_ids.size(), {0, 0, 0, 0, 0});
 
         while (keep_running) {
             auto now = std::chrono::steady_clock::now();
@@ -163,8 +163,8 @@ int main(int argc, char* argv[]) {
             }
 
             auto t_send = std::chrono::steady_clock::now();
-            openarm.get_arm().mit_control_all(zero_cmd);
-            openarm.recv_all(100);
+            damiao_can.mit_control_all(zero_cmd);
+            damiao_can.recv_all(100);
             auto t_recv = std::chrono::steady_clock::now();
             latest_rtt_us = std::chrono::duration<double, std::micro>(t_recv - t_send).count();
 
@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
             if (elapsed_stats >= 1.0) {
                 actual_hz = (loop_count - last_loop_count) / elapsed_stats;
 
-                const auto& motors = openarm.get_arm().get_motors();
+                const auto& motors = damiao_can.get_motors();
                 if (!motors.empty()) {
                     display_stats(motors, latest_rtt_us, target_hz, actual_hz, loop_count);
                 }
@@ -194,9 +194,9 @@ int main(int argc, char* argv[]) {
         }
 
         std::cout << "\nTerminating safely..." << std::endl;
-        openarm.disable_all();
+        damiao_can.disable_all();
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        openarm.recv_all();
+        damiao_can.recv_all();
 
     } catch (const std::exception& e) {
         std::cerr << "Fatal: " << e.what() << std::endl;

@@ -16,10 +16,10 @@
 #include <chrono>
 #include <cmath>
 #include <csignal>
+#include <damiao_can/can/socket/damiao_can.hpp>
+#include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <iomanip>
 #include <iostream>
-#include <openarm/can/socket/openarm.hpp>
-#include <openarm/damiao_motor/dm_motor_constants.hpp>
 #include <sstream>
 #include <thread>
 #include <vector>
@@ -29,12 +29,12 @@
 static std::atomic<bool> g_monitor_running{true};
 static void monitor_sigint_handler(int) { g_monitor_running = false; }
 
-namespace openarm::cli {
+namespace damiao_can::cli {
 
-int run_monitor(const std::string& interface, bool use_arm_ids,
+int run_monitor(const std::string& interface, bool use_default_ids,
                 const std::vector<std::string>& custom_ids_str, int interval_ms, int duration_ms) {
     std::vector<uint32_t> send_ids;
-    if (use_arm_ids)
+    if (use_default_ids)
         for (uint32_t i = 1; i <= 8; ++i) send_ids.push_back(i);
     for (const auto& id_str : custom_ids_str) {
         try {
@@ -52,7 +52,7 @@ int run_monitor(const std::string& interface, bool use_arm_ids,
 
     // Startup summary
     std::cout << "=========================================================\n";
-    std::cout << " OPENARM MONITOR\n";
+    std::cout << " DAMIAO CAN MONITOR\n";
     std::cout << "---------------------------------------------------------\n";
     std::cout << " Interface : " << interface << "\n";
     std::cout << " Motors    :";
@@ -61,7 +61,7 @@ int run_monitor(const std::string& interface, bool use_arm_ids,
     std::cout << std::dec << std::setfill(' ') << "\n";
     std::cout << " Interval  : " << interval_ms << " ms\n";
     std::cout << " Duration  : " << duration_ms << " ms\n";
-    std::cout << " Ctrl+C    : stop early and disarm motors\n";
+    std::cout << " Ctrl+C    : stop early and dismotors\n";
     std::cout << "=========================================================\n\n";
 
     // Format a float; returns "---" padded to width if not finite (motor not responding)
@@ -77,20 +77,20 @@ int run_monitor(const std::string& interface, bool use_arm_ids,
     };
 
     try {
-        openarm::can::socket::OpenArm openarm(interface, true);
-        std::vector<openarm::damiao_motor::MotorType> types(
-            send_ids.size(), openarm::damiao_motor::MotorType::DM4310);
+        damiao_can::can::socket::DamiaoCAN damiao_can(interface, true);
+        std::vector<damiao_can::damiao_motor::MotorType> types(
+            send_ids.size(), damiao_can::damiao_motor::MotorType::DM4310);
         std::vector<uint32_t> recv_ids;
         for (auto id : send_ids) recv_ids.push_back(id + 0x10);
 
-        openarm.init_arm_motors(types, send_ids, recv_ids);
+        damiao_can.init_motors(types, send_ids, recv_ids);
 
         // --- STEP 1: Enable motors for monitoring ---
         std::cout << ">>> Enabling motors..." << std::endl;
-        openarm.set_callback_mode_all(openarm::damiao_motor::CallbackMode::STATE);
-        openarm.enable_all();
+        damiao_can.set_callback_mode_all(damiao_can::damiao_motor::CallbackMode::STATE);
+        damiao_can.enable_all();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        openarm.recv_all();
+        damiao_can.recv_all();
 
         g_monitor_running = true;
         std::signal(SIGINT, monitor_sigint_handler);
@@ -103,15 +103,15 @@ int run_monitor(const std::string& interface, bool use_arm_ids,
                 std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count();
             if (elapsed >= duration_ms) break;
 
-            openarm.refresh_all();
+            damiao_can.refresh_all();
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
-            openarm.recv_all();
+            damiao_can.recv_all();
 
             std::cout << "\033[2J\033[1;1H";
 
             std::cout << "==========================================================="
                          "===========\n";
-            std::cout << "  OPENARM MONITOR | " << interface << " | " << std::fixed
+            std::cout << "  DAMIAO CAN MONITOR | " << interface << " | " << std::fixed
                       << std::setprecision(1) << (double)elapsed / 1000.0 << "s / "
                       << (double)duration_ms / 1000.0 << "s  [Ctrl+C to stop]\n";
             std::cout << "==========================================================="
@@ -122,7 +122,7 @@ int run_monitor(const std::string& interface, bool use_arm_ids,
             std::cout << "-----------------------------------------------------------"
                          "-----------\n";
 
-            const auto& motors = openarm.get_arm().get_motors();
+            const auto& motors = damiao_can.get_motors();
             for (size_t i = 0; i < motors.size(); ++i) {
                 const auto& m = motors[i];
                 std::ostringstream id_ss;
@@ -144,10 +144,10 @@ int run_monitor(const std::string& interface, bool use_arm_ids,
         // --- STEP 2: Disable motors before exiting ---
         std::cout << (g_monitor_running ? "\n>>> Monitoring complete." : "\n>>> Interrupted.")
                   << " Disabling motors..." << std::endl;
-        openarm.disable_all();
+        damiao_can.disable_all();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        openarm.recv_all();
-        std::cout << ">>> All motors DISARMED safely.\n";
+        damiao_can.recv_all();
+        std::cout << ">>> All motors DISABLED safely.\n";
 
     } catch (const std::exception& e) {
         std::cerr << "✗ Monitor Error: " << e.what() << "\n";
@@ -156,4 +156,4 @@ int run_monitor(const std::string& interface, bool use_arm_ids,
     return 0;
 }
 
-}  // namespace openarm::cli
+}  // namespace damiao_can::cli

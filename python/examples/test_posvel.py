@@ -11,39 +11,37 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import openarm_can as oa
+import damiao_can as oa
 import time
 
-# Create OpenArm instance
-arm = oa.OpenArm("can0", True)
+# Create DamiaoCAN instance
+device = oa.DamiaoCAN("can0", True)
 
-# Initialize arm motors
+# Initialize device motors
 motor_types = [oa.MotorType.DM4310]
 send_ids = [0x0A]
 recv_ids = [0x1A]
 control_modes = [oa.ControlMode.POS_VEL]
-arm.init_arm_motors(motor_types, send_ids, recv_ids, control_modes)
+device.init_motors(motor_types, send_ids, recv_ids, control_modes)
 
 # Enable motors
-arm.enable_all()
-arm.recv_all()
+device.enable_all()
+device.recv_all()
 
 # PosVelParam(q, dq)
 #   q  : target position (rad)
 #   dq : target velocity (rad/s)
-arm.set_callback_mode_all(oa.CallbackMode.STATE)
-arm.get_arm().posvel_control_all([oa.PosVelParam(0.0, 0.0)])
-arm.recv_all()
+device.set_callback_mode_all(oa.CallbackMode.STATE)
+device.posvel_control_all([oa.PosVelParam(0.0, 0.0)])
+device.recv_all()
 
 # Read motor position every 0.1s for 30 iterations
 for _ in range(30):
-    arm.refresh_all()
-    arm.recv_all()
-    for motor in arm.get_arm().get_motors():
-        print(motor.get_position())
-    for motor in arm.get_gripper().get_motors():
+    device.refresh_all()
+    device.recv_all()
+    for motor in device.get_motors():
         print(motor.get_position())
     time.sleep(0.1)
 
-arm.disable_all()
-arm.recv_all()
+device.disable_all()
+device.recv_all()

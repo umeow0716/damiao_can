@@ -19,7 +19,7 @@
 
 #include "cli.hpp"
 
-namespace openarm::cli {
+namespace damiao_can::cli {
 
 int run_can_configure(const std::vector<std::string>& interfaces, int bitrate, int dbitrate,
                       bool fd_mode, const std::string& sample_point,
@@ -95,4 +95,4 @@ int run_can_configure(const std::vector<std::string>& interfaces, int bitrate, i
     return failed > 0 ? 1 : 0;
 }
 
-}  // namespace openarm::cli
+}  // namespace damiao_can::cli

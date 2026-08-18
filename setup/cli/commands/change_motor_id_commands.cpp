@@ -15,13 +15,13 @@
 #include <linux/can.h>
 
 #include <chrono>
+#include <damiao_can/canbus/can_socket.hpp>
 #include <iostream>
-#include <openarm/canbus/can_socket.hpp>
 #include <thread>
 
 #include "cli.hpp"
 
-namespace openarm::cli {
+namespace damiao_can::cli {
 
 int run_change_id(const std::string& interface, int current_id, int new_slave_id, int new_master_id,
                   bool save) {
@@ -29,7 +29,7 @@ int run_change_id(const std::string& interface, int current_id, int new_slave_id
         std::cout << "Connecting to " << interface << " (Classic CAN mode)..." << std::endl;
 
         // Config frames (0x7FF) must be sent via Classic CAN (Standard Frame)
-        openarm::canbus::CANSocket socket(interface, false);
+        damiao_can::canbus::CANSocket socket(interface, false);
 
         // Helper to send configuration frames via 0x7FF system ID
         auto send_config = [&](uint16_t target_id, uint8_t rid, uint32_t value) {
@@ -119,4 +119,4 @@ int run_change_id(const std::string& interface, int current_id, int new_slave_id
     }
 }
 
-}  // namespace openarm::cli
+}  // namespace damiao_can::cli

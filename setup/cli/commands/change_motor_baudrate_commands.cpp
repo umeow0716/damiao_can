@@ -15,14 +15,14 @@
 #include <linux/can.h>
 
 #include <chrono>
+#include <damiao_can/canbus/can_socket.hpp>
 #include <iostream>
 #include <map>
-#include <openarm/canbus/can_socket.hpp>
 #include <thread>
 
 #include "cli.hpp"
 
-namespace openarm::cli {
+namespace damiao_can::cli {
 
 int run_change_baud(const std::string& interface, int baudrate, int canid, bool flash) {
     // Mapping of baudrate values to DaMiao register codes
@@ -37,7 +37,7 @@ int run_change_baud(const std::string& interface, int baudrate, int canid, bool 
 
     try {
         std::cout << "Connecting to " << interface << " (Classic CAN mode)..." << std::endl;
-        openarm::canbus::CANSocket socket(interface, false);
+        damiao_can::canbus::CANSocket socket(interface, false);
 
         std::cout << "---------------------------------------------------------" << std::endl;
 
@@ -110,4 +110,4 @@ int run_change_baud(const std::string& interface, int baudrate, int canid, bool 
     }
 }
 
-}  // namespace openarm::cli
+}  // namespace damiao_can::cli

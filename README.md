@@ -1,19 +1,19 @@
-# OpenArm CAN Python Fork
+# Damiao CAN
 
 > [!NOTE]
-> This repository is a Python-focused fork of [`enactic/openarm_can`](https://github.com/enactic/openarm_can).
+> This repository is a DaMiao CAN motor-control library derived from an Enactic CAN implementation.
 >
 > The intended usage of this fork is to install and use the Python package directly from this Git repository.
 >
-> No separate `openarm-can` / `libopenarm-can-dev` system package is required when installing this fork from Git. During a Git-based Python install, the extension module is built against the C++ source tree included in this repository, so the Python bindings and the C++ core stay in sync.
+> No system package is required. A local/Git Python install builds the extension against the C++ source tree included in this repository, keeping the Python bindings and C++ core in sync.
 
-This fork keeps the original OpenArm CAN / SocketCAN C++ structure, while adding Python-focused improvements for experimentation with OpenArm / DaMiao motors.
+The repository provides a SocketCAN C++ core and Python bindings focused on direct DaMiao motor control.
 
-## What This Fork Adds
+## Features
 
 - Python package installation from the `python/` subdirectory through Git URLs.
 - Python type stubs (`.pyi`) and `py.typed` for IDE completion and static analysis.
-- Improved package-level Python exports such as `OpenArm`, `ArmComponent`, `GripperComponent`, and `DMDeviceCollection`.
+- Simplified high-level `DamiaoCAN` API with direct motor access.
 - `flush_rx()` and `refresh_all_and_recv()` helpers for more reliable state refresh from Python.
 - Pure velocity control support through `ControlMode.VEL`, `VelParam`, and `vel_control_one/all`.
 - Additional Python examples for low-level motor-control usage.
@@ -54,28 +54,28 @@ sudo apt install -y \
 ### Install with pip
 
 ```bash
-pip install "git+https://github.com/umeow0716/openarm_can.git@main#subdirectory=python"
+pip install "git+https://github.com/umeow0716/damiao_can.git@main#subdirectory=python"
 ```
 
 ### Install with uv
 
 ```bash
-uv add "git+https://github.com/umeow0716/openarm_can.git@main#subdirectory=python"
+uv add "git+https://github.com/umeow0716/damiao_can.git@main#subdirectory=python"
 ```
 
 ### Local editable install
 
 ```bash
-git clone https://github.com/umeow0716/openarm_can.git
-cd openarm_can/python
+git clone https://github.com/umeow0716/damiao_can.git
+cd damiao_can/python
 pip install -e .
 ```
 
 Or with `uv`:
 
 ```bash
-git clone https://github.com/umeow0716/openarm_can.git
-cd openarm_can/python
+git clone https://github.com/umeow0716/damiao_can.git
+cd damiao_can/python
 uv pip install -e .
 ```
 
@@ -118,28 +118,28 @@ candump can0
 ## Basic Python Usage
 
 ```python
-import openarm_can as oa
+import damiao_can as oa
 
-arm = oa.OpenArm("can0", True)  # True = CAN-FD enabled
+device = oa.DamiaoCAN("can0", True)  # True = CAN-FD enabled
 
-arm.init_arm_motors(
+device.init_motors(
     [oa.MotorType.DM4310],
     [0x01],  # send CAN ID
     [0x11],  # receive CAN ID
     [oa.ControlMode.MIT],
 )
 
-arm.enable_all()
+device.enable_all()
 
-received = arm.refresh_all_and_recv()
+received = device.refresh_all_and_recv()
 print("received frames:", received)
 
-for motor in arm.get_arm().get_motors():
+for motor in device.get_motors():
     print("position:", motor.get_position())
     print("velocity:", motor.get_velocity())
     print("torque:", motor.get_torque())
 
-arm.disable_all()
+device.disable_all()
 ```
 
 ---
@@ -149,8 +149,8 @@ arm.disable_all()
 Clone the repository:
 
 ```bash
-git clone https://github.com/umeow0716/openarm_can.git
-cd openarm_can
+git clone https://github.com/umeow0716/damiao_can.git
+cd damiao_can
 ```
 
 Install the Python package locally:
@@ -168,21 +168,9 @@ dev/README.md
 
 ---
 
-## Relationship to Upstream
+## Project origin
 
-This repository is based on:
-
-```text
-enactic/openarm_can
-```
-
-Original project:
-
-- Repository: <https://github.com/enactic/openarm_can>
-- OpenArm main repository: <https://github.com/enactic/openarm>
-- Documentation: <https://docs.openarm.dev/software/can>
-
-This fork is not intended to replace the upstream project. It is mainly a Python-first fork for experimenting with OpenArm / DaMiao motor control from Python.
+This codebase is derived from an Enactic CAN implementation and retains the original Apache-2.0 license and copyright notices. Git history records the detailed provenance.
 
 ---
 

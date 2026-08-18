@@ -10,21 +10,17 @@
 ### Build
 
 ```bash
-cd openarm_can
+cd damiao_can
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 sudo cmake --install build
 ```
 
-## How to release
+## Build without CLI tools
+
+If you only need the C++ library (or are building the Python bindings), disable the CLI dependency:
 
 ```bash
-export LAUNCHPAD_UPLOADER_PGP_KEY=YOUR_PGP_KEY # e.g. export  LAUNCHPAD_UPLOADER_PGP_KEY=08D3564B7C6A9CAFBFF6A66791D18FCF079F8007
-git clone https://github.com/apache/arrow.git
-export APACHE_ARROW_REPOSITORY=${PWD}/arrow
-git clone https://github.com/groonga/groonga.git
-export GROONGA_REPOSITORY=${PWD}/groonga
-git clone git@github.com:enactic/openarm_can.git
-cd openarm_can
-rake release NEW_VERSION=X.Y.Z # e.g. rake release 1.0.0
+cmake -S . -B build -DDAMIAO_CAN_BUILD_CLI=OFF
+cmake --build build
 ```

@@ -13,26 +13,26 @@
 // limitations under the License.
 
 #include <cmath>
+#include <damiao_can/can/socket/damiao_can.hpp>
+#include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <iostream>
-#include <openarm/can/socket/openarm.hpp>
-#include <openarm/damiao_motor/dm_motor_constants.hpp>
 #include <vector>
 
 #include "cli.hpp"
 
-namespace openarm::cli {
+namespace damiao_can::cli {
 
 /**
- * @brief Controls the operational state (Enable/Disable) of the arm motors.
+ * @brief Controls the operational state (Enable/Disable) of the motors.
  * Sends the command, then verifies each motor responded with valid state data.
  */
-int run_motor_state_control(const std::string& interface, bool use_arm_ids,
+int run_motor_state_control(const std::string& interface, bool use_default_ids,
                             const std::vector<std::string>& custom_ids_str, bool enable) {
     std::vector<uint32_t> send_ids;
 
     // 1. Populate the list of target CAN IDs
-    if (use_arm_ids) {
-        // IDs 1-8 are reserved for the standard arm configuration
+    if (use_default_ids) {
+        // IDs 1-8 are reserved for the default motor configuration
         for (uint32_t i = 1; i <= 8; ++i) send_ids.push_back(i);
     }
     for (const auto& id_str : custom_ids_str) {
@@ -46,43 +46,43 @@ int run_motor_state_control(const std::string& interface, bool use_arm_ids,
     }
 
     if (send_ids.empty()) {
-        std::cerr << "✗ Error: No target IDs specified. Use --arm or --id.\n";
+        std::cerr << "✗ Error: No target IDs specified. Use --all or --id.\n";
         return 1;
     }
 
     try {
-        // 2. Initialize the OpenArm SocketCAN interface
+        // 2. Initialize the DamiaoCAN SocketCAN interface
         std::cout << ">>> Opening " << interface << " (CAN-FD Enabled)..." << std::endl;
-        openarm::can::socket::OpenArm openarm(interface, true);
+        damiao_can::can::socket::DamiaoCAN damiao_can(interface, true);
 
         // 3. Register and initialize motor components
         // DaMiao motors use: Response_ID = Send_ID + 0x10
-        std::vector<openarm::damiao_motor::MotorType> motor_types(
-            send_ids.size(), openarm::damiao_motor::MotorType::DM4310);
+        std::vector<damiao_can::damiao_motor::MotorType> motor_types(
+            send_ids.size(), damiao_can::damiao_motor::MotorType::DM4310);
         std::vector<uint32_t> recv_ids;
         for (auto id : send_ids) recv_ids.push_back(id + 0x10);
 
         std::cout << ">>> Initializing " << send_ids.size() << " DAMIAO motor(s)..." << std::endl;
-        openarm.init_arm_motors(motor_types, send_ids, recv_ids);
+        damiao_can.init_motors(motor_types, send_ids, recv_ids);
 
         // 4. Send enable/disable command (IGNORE mode: skip telemetry parsing during TX)
-        openarm.set_callback_mode_all(openarm::damiao_motor::CallbackMode::IGNORE);
+        damiao_can.set_callback_mode_all(damiao_can::damiao_motor::CallbackMode::IGNORE);
 
         if (enable) {
             std::cout << ">>> Action: ENABLING torque output for target motors..." << std::endl;
-            openarm.enable_all();
+            damiao_can.enable_all();
         } else {
             std::cout << ">>> Action: DISABLING torque output for target motors..." << std::endl;
-            openarm.disable_all();
+            damiao_can.disable_all();
         }
 
         // 5. Switch to STATE mode and wait for motor responses
         // 500ms timeout for first frame - motors should respond within this window
-        openarm.set_callback_mode_all(openarm::damiao_motor::CallbackMode::STATE);
-        openarm.recv_all(500000);
+        damiao_can.set_callback_mode_all(damiao_can::damiao_motor::CallbackMode::STATE);
+        damiao_can.recv_all(500000);
 
         // 6. Verify each motor responded with valid state data
-        const auto& motors = openarm.get_arm().get_motors();
+        const auto& motors = damiao_can.get_motors();
         std::vector<uint32_t> no_response;
 
         for (size_t i = 0; i < motors.size(); ++i) {
@@ -115,4 +115,4 @@ int run_motor_state_control(const std::string& interface, bool use_arm_ids,
     return 0;
 }
 
-}  // namespace openarm::cli
+}  // namespace damiao_can::cli

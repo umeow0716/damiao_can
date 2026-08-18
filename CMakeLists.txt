@@ -13,7 +13,7 @@
 # limitations under the License.
 
 cmake_minimum_required(VERSION 3.22)
-project(openarm_can VERSION 1.2.9)
+project(damiao_can VERSION 1.2.9)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -30,25 +30,24 @@ include(GNUInstallDirs)
 
 # Create the main library
 add_library(
-  openarm_can
-  src/openarm/can/socket/arm_component.cpp
-  src/openarm/can/socket/gripper_component.cpp
-  src/openarm/can/socket/openarm_group.cpp
-  src/openarm/can/socket/openarm.cpp
-  src/openarm/canbus/can_device_collection.cpp
-  src/openarm/canbus/can_socket.cpp
-  src/openarm/damiao_motor/dm_motor.cpp
-  src/openarm/damiao_motor/dm_motor_control.cpp
-  src/openarm/damiao_motor/dm_motor_device.cpp
-  src/openarm/damiao_motor/dm_motor_device_collection.cpp)
+  damiao_can
+  src/damiao_can/can/socket/motor_component.cpp
+  src/damiao_can/can/socket/damiao_can_group.cpp
+  src/damiao_can/can/socket/damiao_can.cpp
+  src/damiao_can/canbus/can_device_collection.cpp
+  src/damiao_can/canbus/can_socket.cpp
+  src/damiao_can/damiao_motor/dm_motor.cpp
+  src/damiao_can/damiao_motor/dm_motor_control.cpp
+  src/damiao_can/damiao_motor/dm_motor_device.cpp
+  src/damiao_can/damiao_motor/dm_motor_device_collection.cpp)
 set_target_properties(
-  openarm_can
+  damiao_can
   PROPERTIES POSITION_INDEPENDENT_CODE ON
              VERSION ${PROJECT_VERSION}
              SOVERSION ${PROJECT_VERSION_MAJOR})
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.23)
   target_sources(
-    openarm_can
+    damiao_can
     PUBLIC FILE_SET
            HEADERS
            TYPE
@@ -56,47 +55,46 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.23)
            BASE_DIRS
            include
            FILES
-           include/openarm/can/socket/arm_component.hpp
-           include/openarm/can/socket/gripper_component.hpp
-           include/openarm/can/socket/openarm_group.hpp
-           include/openarm/can/socket/openarm.hpp
-           include/openarm/canbus/can_device.hpp
-           include/openarm/canbus/can_device_collection.hpp
-           include/openarm/canbus/can_socket.hpp
-           include/openarm/damiao_motor/dm_motor.hpp
-           include/openarm/damiao_motor/dm_motor_constants.hpp
-           include/openarm/damiao_motor/dm_motor_control.hpp
-           include/openarm/damiao_motor/dm_motor_device.hpp
-           include/openarm/damiao_motor/dm_motor_device_collection.hpp)
+           include/damiao_can/can/socket/motor_component.hpp
+           include/damiao_can/can/socket/damiao_can_group.hpp
+           include/damiao_can/can/socket/damiao_can.hpp
+           include/damiao_can/canbus/can_device.hpp
+           include/damiao_can/canbus/can_device_collection.hpp
+           include/damiao_can/canbus/can_socket.hpp
+           include/damiao_can/damiao_motor/dm_motor.hpp
+           include/damiao_can/damiao_motor/dm_motor_constants.hpp
+           include/damiao_can/damiao_motor/dm_motor_control.hpp
+           include/damiao_can/damiao_motor/dm_motor_device.hpp
+           include/damiao_can/damiao_motor/dm_motor_device_collection.hpp)
   install(
-    TARGETS openarm_can
-    EXPORT openarm_can_export
+    TARGETS damiao_can
+    EXPORT damiao_can_export
     FILE_SET HEADERS)
 else()
   target_include_directories(
-    openarm_can PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                       $<INSTALL_INTERFACE:include>)
-  install(TARGETS openarm_can EXPORT openarm_can_export)
-  install(DIRECTORY include/openarm TYPE INCLUDE)
+    damiao_can PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                      $<INSTALL_INTERFACE:include>)
+  install(TARGETS damiao_can EXPORT damiao_can_export)
+  install(DIRECTORY include/damiao_can TYPE INCLUDE)
 endif()
 
 # CMake package
-set(INSTALL_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/OpenArmCAN)
+set(INSTALL_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/DamiaoCAN)
 install(
-  EXPORT openarm_can_export
+  EXPORT damiao_can_export
   DESTINATION ${INSTALL_CMAKE_DIR}
-  NAMESPACE OpenArmCAN::
-  FILE OpenArmCANTargets.cmake)
+  NAMESPACE DamiaoCAN::
+  FILE DamiaoCANTargets.cmake)
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-  OpenArmCANConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/OpenArmCANConfig.cmake
+  DamiaoCANConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/DamiaoCANConfig.cmake
   INSTALL_DESTINATION ${INSTALL_CMAKE_DIR})
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/OpenArmCANConfigVersion.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/DamiaoCANConfigVersion.cmake
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY SameMajorVersion)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/OpenArmCANConfig.cmake
-              ${CMAKE_CURRENT_BINARY_DIR}/OpenArmCANConfigVersion.cmake
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/DamiaoCANConfig.cmake
+              ${CMAKE_CURRENT_BINARY_DIR}/DamiaoCANConfigVersion.cmake
         DESTINATION ${INSTALL_CMAKE_DIR})
 
 # pkg-config package
@@ -110,53 +108,53 @@ if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
 else()
   set(PKG_CONFIG_LIBDIR "\${prefix}/${CMAKE_INSTALL_LIBDIR}")
 endif()
-configure_file(openarm-can.pc.in ${CMAKE_CURRENT_BINARY_DIR}/openarm-can.pc
-               @ONLY)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/openarm-can.pc
+configure_file(damiao-can.pc.in ${CMAKE_CURRENT_BINARY_DIR}/damiao-can.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/damiao-can.pc
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
-add_executable(openarm-can-motor-sampling-check setup/motor_sampling_check.cpp)
-target_link_libraries(openarm-can-motor-sampling-check openarm_can)
-install(TARGETS openarm-can-motor-sampling-check
+add_executable(damiao-can-motor-sampling-check setup/motor_sampling_check.cpp)
+target_link_libraries(damiao-can-motor-sampling-check damiao_can)
+install(TARGETS damiao-can-motor-sampling-check
         DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Add motor control example executable
-add_executable(openarm-can-demo examples/demo.cpp)
-target_link_libraries(openarm-can-demo openarm_can)
-install(TARGETS openarm-can-demo DESTINATION ${CMAKE_INSTALL_BINDIR})
+add_executable(damiao-can-demo examples/demo.cpp)
+target_link_libraries(damiao-can-demo damiao_can)
+install(TARGETS damiao-can-demo DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # ==============================================================================
-# OpenArm Unified CLI Tool (openarm-can)
+# DamiaoCAN CLI tools
 # ==============================================================================
-find_package(CLI11 REQUIRED)
-add_executable(
-  openarm-can-cli
-  setup/cli/openarm_cli.cpp
-  setup/cli/commands/can_configure_commands.cpp
-  setup/cli/commands/motor_status_commands.cpp
-  setup/cli/commands/change_motor_baudrate_commands.cpp
-  setup/cli/commands/zero_position_commands.cpp
-  setup/cli/commands/motor_read_param_commands.cpp
-  setup/cli/commands/monitor_motor_status_commands.cpp
-  setup/cli/commands/discover_motor_commands.cpp
-  setup/cli/commands/change_motor_id_commands.cpp
-  setup/cli/commands/write_motor_param_commands.cpp
-  setup/cli/commands/clear_error_commands.cpp)
-target_include_directories(
-  openarm-can-cli PRIVATE setup/cli ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(openarm-can-cli PRIVATE openarm_can CLI11::CLI11)
-install(TARGETS openarm-can-cli DESTINATION ${CMAKE_INSTALL_BINDIR})
+option(DAMIAO_CAN_BUILD_CLI "Build DamiaoCAN CLI tools" ON)
+if(DAMIAO_CAN_BUILD_CLI)
+  find_package(CLI11 REQUIRED)
+  add_executable(
+    damiao-can-cli
+    setup/cli/damiao_can_cli.cpp
+    setup/cli/commands/can_configure_commands.cpp
+    setup/cli/commands/motor_status_commands.cpp
+    setup/cli/commands/change_motor_baudrate_commands.cpp
+    setup/cli/commands/zero_position_commands.cpp
+    setup/cli/commands/motor_read_param_commands.cpp
+    setup/cli/commands/monitor_motor_status_commands.cpp
+    setup/cli/commands/discover_motor_commands.cpp
+    setup/cli/commands/change_motor_id_commands.cpp
+    setup/cli/commands/write_motor_param_commands.cpp
+    setup/cli/commands/clear_error_commands.cpp)
+  target_include_directories(
+    damiao-can-cli PRIVATE setup/cli ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(damiao-can-cli PRIVATE damiao_can CLI11::CLI11)
+  install(TARGETS damiao-can-cli DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-# Install scripts
-install(PROGRAMS setup/openarm-can-configure-socketcan-4-arms
-                 setup/openarm-can-zero-position-calibration
-        DESTINATION ${CMAKE_INSTALL_BINDIR})
+  install(PROGRAMS setup/damiao-can-configure-socketcan
+                   setup/damiao-can-zero-position-calibration
+          DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-# Install bash completion
-install(
-  FILES setup/openarm-can-cli.bash
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/bash-completion/completions
-  RENAME openarm-can-cli)
+  install(
+    FILES setup/damiao-can-cli.bash
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/bash-completion/completions
+    RENAME damiao-can-cli)
+endif()
 
 # Add tests
 if(BUILD_TESTING)

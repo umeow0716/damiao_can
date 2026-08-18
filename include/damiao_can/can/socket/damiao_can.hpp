@@ -1,0 +1,82 @@
+// Copyright 2025 Enactic, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#pragma once
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "../../canbus/can_device_collection.hpp"
+#include "../../canbus/can_socket.hpp"
+#include "motor_component.hpp"
+
+namespace damiao_can::can::socket {
+class DamiaoCAN {
+public:
+    DamiaoCAN(const std::string& can_interface, bool enable_fd = false);
+    ~DamiaoCAN() = default;
+
+    std::string can_interface() const noexcept { return can_interface_; }
+    bool can_fd_enabled() const noexcept { return enable_fd_; }
+
+    void init_motors(const std::vector<damiao_motor::MotorType>& motor_types,
+                     const std::vector<uint32_t>& send_can_ids,
+                     const std::vector<uint32_t>& recv_can_ids,
+                     const std::vector<damiao_motor::ControlMode>& control_modes = {});
+
+    std::vector<damiao_motor::Motor> get_motors() const;
+    damiao_motor::Motor get_motor(int i) const;
+    canbus::CANDeviceCollection& get_master_can_device_collection() {
+        return *master_can_device_collection_;
+    }
+
+    void enable_all();
+    void disable_all();
+    void set_zero(int i);
+    void set_zero_all();
+    void refresh_one(int i);
+    void refresh_all();
+    void query_param_one(int i, int RID);
+    void query_param_all(int RID);
+    void set_callback_mode_all(damiao_motor::CallbackMode callback_mode);
+    void set_control_mode_one(int i, damiao_motor::ControlMode mode);
+    void set_control_mode_all(damiao_motor::ControlMode mode);
+    void mit_control_one(int i, const damiao_motor::MITParam& mit_param);
+    void mit_control_all(const std::vector<damiao_motor::MITParam>& mit_params);
+    void posvel_control_one(int i, const damiao_motor::PosVelParam& posvel_param);
+    void posvel_control_all(const std::vector<damiao_motor::PosVelParam>& posvel_params);
+    void vel_control_one(int i, const damiao_motor::VelParam& vel_param);
+    void vel_control_all(const std::vector<damiao_motor::VelParam>& vel_params);
+    void posforce_control_one(int i, const damiao_motor::PosForceParam& posforce_param);
+    void posforce_control_all(const std::vector<damiao_motor::PosForceParam>& posforce_params);
+
+    void recv_all(int first_timeout_us = 500);
+    int flush_rx();
+    int refresh_all_and_recv(int timeout_us = 500);
+    int recv_wait_all(int timeout_us = 500);
+    int expected_response_count() const;
+
+private:
+    std::string can_interface_;
+    bool enable_fd_;
+    std::unique_ptr<canbus::CANSocket> can_socket_;
+    std::unique_ptr<MotorComponent> motor_collection_;
+    std::unique_ptr<canbus::CANDeviceCollection> master_can_device_collection_;
+
+    void register_motor_collection();
+    int recv_expected_responses(int timeout_us, int expected_responses);
+};
+
+}  // namespace damiao_can::can::socket

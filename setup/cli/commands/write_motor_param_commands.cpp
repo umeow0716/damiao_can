@@ -16,14 +16,14 @@
 
 #include <chrono>
 #include <cstring>
+#include <damiao_can/canbus/can_socket.hpp>
+#include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <iostream>
-#include <openarm/canbus/can_socket.hpp>
-#include <openarm/damiao_motor/dm_motor_constants.hpp>
 #include <thread>
 
 #include "cli.hpp"
 
-namespace openarm::cli {
+namespace damiao_can::cli {
 
 /**
  * @brief Writes a parameter to a specific register (RID) of the motor.
@@ -33,11 +33,11 @@ int run_write_param(const std::string& interface, uint32_t can_id, int rid, floa
                     bool save) {
     try {
         std::cout << "Connecting to " << interface << " (Classic CAN mode)..." << std::endl;
-        openarm::canbus::CANSocket socket(interface, false);
+        damiao_can::canbus::CANSocket socket(interface, false);
 
         // --- 1. Prepare Data based on RID type ---
         uint32_t raw_value = 0;
-        using namespace openarm::damiao_motor;
+        using namespace damiao_can::damiao_motor;
 
         if (rid < 0 || rid >= static_cast<int>(RID::COUNT)) {
             std::cerr << "✗ Error: Invalid RID " << rid << " (valid range: 0 to "
@@ -121,4 +121,4 @@ int run_write_param(const std::string& interface, uint32_t can_id, int rid, floa
     }
 }
 
-}  // namespace openarm::cli
+}  // namespace damiao_can::cli

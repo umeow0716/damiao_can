@@ -13,10 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. -->
 <package format="3">
-  <name>openarm_can</name>
+  <name>damiao_can</name>
   <version>1.2.9</version>
-  <description>Low-level SocketCAN library and tools for OpenArm manipulators.</description>
-  <maintainer email="openarm_dev@enactic.ai">Enactic, Inc.</maintainer>
+  <description>Low-level SocketCAN library and tools for DaMiao motors.</description>
+  <maintainer email="61258096+umeow0716@users.noreply.github.com">umeow0716</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

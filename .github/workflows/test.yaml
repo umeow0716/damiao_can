@@ -96,4 +96,4 @@ jobs:
             ./python
       - name: "Python: Test"
         run: |
-          python3 -c "import openarm_can"
+          python3 -c "import damiao_can"

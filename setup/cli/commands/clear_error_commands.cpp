@@ -14,23 +14,23 @@
 
 #include <linux/can.h>
 
+#include <damiao_can/canbus/can_socket.hpp>
 #include <iostream>
-#include <openarm/canbus/can_socket.hpp>
 #include <string>
 #include <vector>
 
 #include "cli.hpp"
 
-namespace openarm::cli {
+namespace damiao_can::cli {
 
-int run_clear_error(const std::string& interface, bool use_arm_ids,
+int run_clear_error(const std::string& interface, bool use_default_ids,
                     const std::vector<std::string>& custom_ids_str) {
     try {
         std::cout << ">>> Connecting to " << interface << " (Classic CAN mode)..." << std::endl;
-        openarm::canbus::CANSocket socket(interface, false);
+        damiao_can::canbus::CANSocket socket(interface, false);
 
         std::vector<int> target_ids;
-        if (use_arm_ids) {
+        if (use_default_ids) {
             for (int i = 1; i <= 8; ++i) target_ids.push_back(i);
         }
         for (const auto& id_str : custom_ids_str) {
@@ -38,7 +38,7 @@ int run_clear_error(const std::string& interface, bool use_arm_ids,
         }
 
         if (target_ids.empty()) {
-            std::cerr << "✗ No target IDs specified. Use --arm or --id." << std::endl;
+            std::cerr << "✗ No target IDs specified. Use --all or --id." << std::endl;
             return 1;
         }
 
@@ -69,4 +69,4 @@ int run_clear_error(const std::string& interface, bool use_arm_ids,
     }
 }
 
-}  // namespace openarm::cli
+}  // namespace damiao_can::cli
