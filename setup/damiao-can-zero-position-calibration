@@ -20,7 +20,7 @@ import time
 from enum import IntEnum
 
 import numpy as np
-import damiao_can as oa
+import damiao_can as dc
 
 
 class JointID(IntEnum):
@@ -70,7 +70,7 @@ def interpolate(device, joint_id: JointID, delta_rad,
     for i in range(n_steps + 1):
         alpha = i / n_steps
         q = q0 + (q1 - q0) * alpha
-        device.mit_control_one(idx, oa.MITParam(kp, kd, q, 0.0, tau))
+        device.mit_control_one(idx, dc.MITParam(kp, kd, q, 0.0, tau))
         device.recv_all()
         time.sleep(dt)
 
@@ -93,7 +93,7 @@ def bump_to_limit(device, joint_id, step_deg=0.2, kp=45.0, kd=1.2,
 
     while True:
         q_target += step_rad
-        device.mit_control_one(idx, oa.MITParam(
+        device.mit_control_one(idx, dc.MITParam(
             kp, kd, q_target, 0.0, tau_cmd))
         device.recv_all()
         time.sleep(0.005)
@@ -246,21 +246,21 @@ def main():
     else:
         mech_lim = MECH_LIM_V1
 
-    device = oa.DamiaoCAN(args.canport, True)
+    device = dc.DamiaoCAN(args.canport, True)
     device.init_motors(
         [
-            oa.MotorType.DM8009,
-            oa.MotorType.DM8009,
-            oa.MotorType.DM4340,
-            oa.MotorType.DM4340,
-            oa.MotorType.DM4310,
-            oa.MotorType.DM4310,
-            oa.MotorType.DM4310,
+            dc.MotorType.DM8009,
+            dc.MotorType.DM8009,
+            dc.MotorType.DM4340,
+            dc.MotorType.DM4340,
+            dc.MotorType.DM4310,
+            dc.MotorType.DM4310,
+            dc.MotorType.DM4310,
         ],
         [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07],
         [0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17],
     )
-    device.set_callback_mode_all(oa.CallbackMode.STATE)
+    device.set_callback_mode_all(dc.CallbackMode.STATE)
 
     print("Enabling...")
     device.enable_all()
@@ -269,7 +269,7 @@ def main():
 
     initial_q = [motor.get_position() for motor in device.get_motors()]
     hold_params = [
-        oa.MITParam(kp, kd, q, 0.0, 0.0)
+        dc.MITParam(kp, kd, q, 0.0, 0.0)
         for kp, kd, q in zip(
             [300, 300, 150, 150, 40, 40, 30],
             [2.5, 2.5, 2.5, 2.5, 0.8, 0.8, 0.8],

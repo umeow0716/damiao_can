@@ -151,15 +151,15 @@ A successfully constructed `DamiaoCAN` also exposes the helper as `device.can_he
 ## Basic Python Usage
 
 ```python
-import damiao_can as oa
+import damiao_can as dc
 
-device = oa.DamiaoCAN("can0", True)  # True = CAN-FD enabled
+device = dc.DamiaoCAN("can0", True)  # True = CAN-FD enabled
 
 device.init_motors(
-    [oa.MotorType.DM4310],
+    [dc.MotorType.DM4310],
     [0x01],  # send CAN ID
     [0x11],  # receive CAN ID
-    [oa.ControlMode.MIT],
+    [dc.ControlMode.MIT],
 )
 
 device.enable_all()

@@ -41,7 +41,7 @@ struct CANInterfaceConfig {
     double sample_point{0.0};
     double dsample_point{0.0};
     uint32_t dsjw{0};
-    uint32_t restart_ms{100};
+    std::optional<uint32_t> restart_ms;
     bool bring_up{true};
 };
 

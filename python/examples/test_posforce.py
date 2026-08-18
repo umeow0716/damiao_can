@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import damiao_can as oa
+import damiao_can as dc
 import time
 
 # Create DamiaoCAN instance
-device = oa.DamiaoCAN("can0", True)
+device = dc.DamiaoCAN("can0", True)
 
 # Initialize device motors
-motor_types = [oa.MotorType.DM4310]
+motor_types = [dc.MotorType.DM4310]
 send_ids = [0x0A]
 recv_ids = [0x1A]
-control_modes = [oa.ControlMode.POS_FORCE]
+control_modes = [dc.ControlMode.POS_FORCE]
 device.init_motors(motor_types, send_ids, recv_ids, control_modes)
 
 # Enable motors
@@ -33,8 +33,8 @@ device.recv_all()
 #   q   : target position (rad)
 #   dq  : max velocity (rad/s)
 #   i   : current limit (A)
-device.set_callback_mode_all(oa.CallbackMode.STATE)
-device.posforce_control_all([oa.PosForceParam(0.0, 0.0, 0.0)])
+device.set_callback_mode_all(dc.CallbackMode.STATE)
+device.posforce_control_all([dc.PosForceParam(0.0, 0.0, 0.0)])
 device.recv_all()
 
 # Read motor position every 0.1s for 30 iterations
