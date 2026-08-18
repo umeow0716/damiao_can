@@ -18,6 +18,11 @@ import time
 
 device = dc.DamiaoCAN("can0", True)
 
+# Always reset the SocketCAN link before motor setup.
+device.can_helper.set_down()
+device.can_helper.set_bitrate(1_000_000, 5_000_000, True)
+device.can_helper.set_up()
+
 # Initialize device motors
 motor_types = [dc.MotorType.DM4310, dc.MotorType.DM4310]
 send_ids = [0x01, 0x02]

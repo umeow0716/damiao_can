@@ -17,8 +17,24 @@
 
 #include <damiao_can/damiao_motor/dm_motor_device_collection.hpp>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
 namespace damiao_can::damiao_motor {
+namespace {
+
+template <typename T>
+void require_param_count(const std::vector<T>& params, std::size_t device_count,
+                         const char* param_name) {
+    if (params.size() != device_count) {
+        throw std::invalid_argument(
+            std::string(param_name) +
+            " count must match the number of initialized motors: expected " +
+            std::to_string(device_count) + ", got " + std::to_string(params.size()));
+    }
+}
+
+}  // namespace
 
 DMDeviceCollection::DMDeviceCollection(canbus::CANSocket& can_socket)
     : can_socket_(can_socket),
@@ -77,8 +93,8 @@ void DMDeviceCollection::set_callback_mode_all(CallbackMode callback_mode) {
 
 void DMDeviceCollection::query_param_one(int i, int RID) {
     CANPacket param_query =
-        CanPacketEncoder::create_query_param_command(get_dm_devices()[i]->get_motor(), RID);
-    send_command_to_device(get_dm_devices()[i], param_query);
+        CanPacketEncoder::create_query_param_command(get_dm_devices().at(i)->get_motor(), RID);
+    send_command_to_device(get_dm_devices().at(i), param_query);
 }
 
 void DMDeviceCollection::query_param_all(int RID) {
@@ -90,7 +106,7 @@ void DMDeviceCollection::query_param_all(int RID) {
 }
 
 void DMDeviceCollection::set_control_mode_one(int i, ControlMode mode) {
-    auto dm_device = get_dm_devices()[i];
+    auto dm_device = get_dm_devices().at(i);
     dm_device->set_control_mode(mode);
     CANPacket cmd = CanPacketEncoder::create_set_control_mode_command(dm_device->get_motor(), mode);
     send_command_to_device(dm_device, cmd);
@@ -114,7 +130,7 @@ void DMDeviceCollection::send_command_to_device(std::shared_ptr<DMCANDevice> dm_
 }
 
 void DMDeviceCollection::mit_control_one(int i, const MITParam& mit_param) {
-    auto dm_device = get_dm_devices()[i];
+    auto dm_device = get_dm_devices().at(i);
     if (dm_device->get_control_mode() != ControlMode::MIT) {
         std::cerr << "WARNING: MIT control rejected; motor not in MIT mode." << std::endl;
         return;
@@ -125,13 +141,15 @@ void DMDeviceCollection::mit_control_one(int i, const MITParam& mit_param) {
 }
 
 void DMDeviceCollection::mit_control_all(const std::vector<MITParam>& mit_params) {
+    const auto devices = get_dm_devices();
+    require_param_count(mit_params, devices.size(), "MIT parameter");
     for (size_t i = 0; i < mit_params.size(); i++) {
         mit_control_one(i, mit_params[i]);
     }
 }
 
 void DMDeviceCollection::posvel_control_one(int i, const PosVelParam& posvel_param) {
-    auto dm_device = get_dm_devices()[i];
+    auto dm_device = get_dm_devices().at(i);
     if (dm_device->get_control_mode() != ControlMode::POS_VEL) {
         std::cerr << "WARNING: posvel control rejected; motor not in POS_VEL mode." << std::endl;
         return;
@@ -142,13 +160,15 @@ void DMDeviceCollection::posvel_control_one(int i, const PosVelParam& posvel_par
 }
 
 void DMDeviceCollection::posvel_control_all(const std::vector<PosVelParam>& posvel_params) {
+    const auto devices = get_dm_devices();
+    require_param_count(posvel_params, devices.size(), "position/velocity parameter");
     for (size_t i = 0; i < posvel_params.size(); i++) {
         posvel_control_one(i, posvel_params[i]);
     }
 }
 
 void DMDeviceCollection::vel_control_one(int i, const VelParam& vel_param) {
-    auto dm_device = get_dm_devices()[i];
+    auto dm_device = get_dm_devices().at(i);
     if (dm_device->get_control_mode() != ControlMode::VEL) {
         std::cerr << "WARNING: vel control rejected; motor not in VEL mode." << std::endl;
         return;
@@ -160,13 +180,15 @@ void DMDeviceCollection::vel_control_one(int i, const VelParam& vel_param) {
 }
 
 void DMDeviceCollection::vel_control_all(const std::vector<VelParam>& vel_params) {
+    const auto devices = get_dm_devices();
+    require_param_count(vel_params, devices.size(), "velocity parameter");
     for (size_t i = 0; i < vel_params.size(); i++) {
         vel_control_one(static_cast<int>(i), vel_params[i]);
     }
 }
 
 void DMDeviceCollection::posforce_control_one(int i, const PosForceParam& posforce_param) {
-    auto dm_device = get_dm_devices()[i];
+    auto dm_device = get_dm_devices().at(i);
     if (dm_device->get_control_mode() != ControlMode::POS_FORCE) {
         std::cerr << "WARNING: posforce control rejected; motor not in POS_FORCE mode."
                   << std::endl;
@@ -178,6 +200,8 @@ void DMDeviceCollection::posforce_control_one(int i, const PosForceParam& posfor
 }
 
 void DMDeviceCollection::posforce_control_all(const std::vector<PosForceParam>& posforce_params) {
+    const auto devices = get_dm_devices();
+    require_param_count(posforce_params, devices.size(), "position/force parameter");
     for (size_t i = 0; i < posforce_params.size(); i++) {
         posforce_control_one(i, posforce_params[i]);
     }

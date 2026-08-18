@@ -120,6 +120,15 @@ int run_process(const std::vector<std::string>& args, bool quiet = false) {
     return 125;
 }
 
+std::string format_command(const std::vector<std::string>& command) {
+    std::ostringstream stream;
+    for (std::size_t i = 0; i < command.size(); ++i) {
+        if (i != 0) stream << ' ';
+        stream << command[i];
+    }
+    return stream.str();
+}
+
 void run_ip_mutation(const std::vector<std::string>& ip_args) {
     std::vector<std::string> command;
     const std::string ip = find_ip_executable();
@@ -140,15 +149,19 @@ void run_ip_mutation(const std::vector<std::string>& ip_args) {
         throw CANHelperException(direct ? "ip executable was not found"
                                         : "sudo executable was not found");
     }
+    if (rc == 126) {
+        throw CANHelperException("failed to execute CAN configuration command: " +
+                                 format_command(command));
+    }
     if (rc != 0) {
         if (!direct && !has_tty) {
             throw CANHelperException(
                 "CAN configuration requires CAP_NET_ADMIN; sudo could not complete "
                 "non-interactively because no controlling terminal is available (exit " +
-                std::to_string(rc) + ")");
+                std::to_string(rc) + "): " + format_command(command));
         }
-        throw CANHelperException("failed to configure CAN interface (command exited with " +
-                                 std::to_string(rc) + ")");
+        throw CANHelperException("CAN configuration command failed with exit code " +
+                                 std::to_string(rc) + ": " + format_command(command));
     }
 }
 
@@ -327,6 +340,28 @@ void CANHelper::set_down() const {
     if (!current.is_can)
         throw CANHelperException("network interface is not a CAN device: " + interface_);
     run_ip_mutation({"link", "set", "dev", interface_, "down"});
+}
+
+void CANHelper::set_bitrate(uint32_t bitrate, uint32_t dbitrate, bool fd_enabled) const {
+    const auto current = status();
+    if (!current.exists) throw CANHelperException("CAN interface does not exist: " + interface_);
+    if (!current.is_can) {
+        throw CANHelperException("network interface is not a CAN device: " + interface_);
+    }
+    if (bitrate == 0) throw CANHelperException("CAN bitrate must be greater than zero");
+    if (fd_enabled && dbitrate == 0) {
+        throw CANHelperException("CAN-FD data bitrate must be greater than zero");
+    }
+
+    std::vector<std::string> args = {"link", "set", "dev",     interface_,
+                                     "type", "can", "bitrate", std::to_string(bitrate)};
+    if (fd_enabled) {
+        args.insert(args.end(), {"dbitrate", std::to_string(dbitrate), "fd", "on"});
+    } else {
+        args.insert(args.end(), {"fd", "off"});
+    }
+
+    run_ip_mutation(args);
 }
 
 void CANHelper::configure(const CANInterfaceConfig& config) const {

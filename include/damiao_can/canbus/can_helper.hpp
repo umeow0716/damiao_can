@@ -65,6 +65,7 @@ public:
     // available. Otherwise they request elevation through interactive sudo.
     void set_up() const;
     void set_down() const;
+    void set_bitrate(uint32_t bitrate, uint32_t dbitrate, bool fd_enabled) const;
     void configure(const CANInterfaceConfig& config) const;
 
 private:

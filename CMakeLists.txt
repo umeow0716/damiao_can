@@ -114,49 +114,10 @@ configure_file(damiao-can.pc.in ${CMAKE_CURRENT_BINARY_DIR}/damiao-can.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/damiao-can.pc
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
-add_executable(damiao-can-motor-sampling-check setup/motor_sampling_check.cpp)
-target_link_libraries(damiao-can-motor-sampling-check damiao_can)
-install(TARGETS damiao-can-motor-sampling-check
-        DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-# Add motor control example executable
+# C++ demo executable. This is intentionally the only C++ command-line target.
 add_executable(damiao-can-demo examples/demo.cpp)
 target_link_libraries(damiao-can-demo damiao_can)
 install(TARGETS damiao-can-demo DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-# ==============================================================================
-# DamiaoCAN CLI tools
-# ==============================================================================
-option(DAMIAO_CAN_BUILD_CLI "Build DamiaoCAN CLI tools" ON)
-if(DAMIAO_CAN_BUILD_CLI)
-  find_package(CLI11 REQUIRED)
-  add_executable(
-    damiao-can-cli
-    setup/cli/damiao_can_cli.cpp
-    setup/cli/commands/can_configure_commands.cpp
-    setup/cli/commands/motor_status_commands.cpp
-    setup/cli/commands/change_motor_baudrate_commands.cpp
-    setup/cli/commands/zero_position_commands.cpp
-    setup/cli/commands/motor_read_param_commands.cpp
-    setup/cli/commands/monitor_motor_status_commands.cpp
-    setup/cli/commands/discover_motor_commands.cpp
-    setup/cli/commands/change_motor_id_commands.cpp
-    setup/cli/commands/write_motor_param_commands.cpp
-    setup/cli/commands/clear_error_commands.cpp)
-  target_include_directories(
-    damiao-can-cli PRIVATE setup/cli ${CMAKE_CURRENT_SOURCE_DIR}/include)
-  target_link_libraries(damiao-can-cli PRIVATE damiao_can CLI11::CLI11)
-  install(TARGETS damiao-can-cli DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-  install(PROGRAMS setup/damiao-can-configure-socketcan
-                   setup/damiao-can-zero-position-calibration
-          DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-  install(
-    FILES setup/damiao-can-cli.bash
-    DESTINATION ${CMAKE_INSTALL_DATADIR}/bash-completion/completions
-    RENAME damiao-can-cli)
-endif()
 
 # Add tests
 if(BUILD_TESTING)

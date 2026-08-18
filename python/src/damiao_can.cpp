@@ -265,7 +265,7 @@ NB_MODULE(damiao_can, m) {
     // ============================================================================
 
     // CAN Socket Exception
-    nb::exception<CANSocketException>(m, "CANSocketException");
+    nb::exception<CANSocketException>(m, "CANSocketException", PyExc_RuntimeError);
 
     // CANDevice base class (MUST be defined before derived classes)
     nb::class_<CANDevice>(m, "CANDevice")
@@ -317,7 +317,7 @@ NB_MODULE(damiao_can, m) {
         .def("get_devices", &CANDeviceCollection::get_devices);
 
     // CAN interface status/configuration helper. Status probing never elevates privileges.
-    nb::exception<CANHelperException>(m, "CANHelperException");
+    nb::exception<CANHelperException>(m, "CANHelperException", PyExc_RuntimeError);
 
     nb::class_<CANInterfaceStatus>(m, "CANInterfaceStatus")
         .def(nb::init<>())
@@ -351,6 +351,8 @@ NB_MODULE(damiao_can, m) {
         .def("can_configure_without_sudo", &CANHelper::can_configure_without_sudo)
         .def("set_up", &CANHelper::set_up)
         .def("set_down", &CANHelper::set_down)
+        .def("set_bitrate", &CANHelper::set_bitrate, nb::arg("bitrate"), nb::arg("dbitrate"),
+             nb::arg("fd"))
         .def("configure", &CANHelper::configure, nb::arg("config"));
 
     // CAN Socket class

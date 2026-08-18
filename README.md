@@ -131,18 +131,15 @@ print(status.bitrate, status.dbitrate, status.fd_enabled)
 
 Configuration is explicit. If the process already has `CAP_NET_ADMIN`, it is used directly. Otherwise the helper starts `sudo` as a child process and lets `sudo` request authorization from the controlling terminal. Passwords are never passed through the Python/C++ API.
 
-```python
-config = dc.CANInterfaceConfig()
-config.bitrate = 1_000_000
-config.dbitrate = 5_000_000
-config.fd_enabled = True
-config.sample_point = 0.75
-config.dsample_point = 0.75
-config.dsjw = 2
-config.restart_ms = 100
+For the common CAN-FD setup, keep the link transition explicit:
 
-helper.configure(config)
+```python
+helper.set_down()
+helper.set_bitrate(1_000_000, 5_000_000, True)
+helper.set_up()
 ```
+
+`CANInterfaceConfig` and `helper.configure(config)` remain available for advanced timing options.
 
 A successfully constructed `DamiaoCAN` also exposes the helper as `device.can_helper`. Use a standalone `CANHelper` when the interface may not exist yet, because `DamiaoCAN` still opens its SocketCAN socket during construction.
 
@@ -154,6 +151,9 @@ A successfully constructed `DamiaoCAN` also exposes the helper as `device.can_he
 import damiao_can as dc
 
 device = dc.DamiaoCAN("can0", True)
+device.can_helper.set_down()
+device.can_helper.set_bitrate(1_000_000, 5_000_000, True)
+device.can_helper.set_up()
 
 device.init_motors(
     [dc.MotorType.DM4310],
