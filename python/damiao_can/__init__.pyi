@@ -10,6 +10,10 @@ from damiao_can.damiao_can import MotorComponent
 from damiao_can.damiao_can import CANDevice
 from damiao_can.damiao_can import CANDeviceCollection
 from damiao_can.damiao_can import CANPacket
+from damiao_can.damiao_can import CANHelper
+from damiao_can.damiao_can import CANHelperException
+from damiao_can.damiao_can import CANInterfaceConfig
+from damiao_can.damiao_can import CANInterfaceStatus
 from damiao_can.damiao_can import CANSocket
 from damiao_can.damiao_can import CANSocketException
 from damiao_can.damiao_can import CallbackMode
@@ -43,6 +47,9 @@ __all__: list[str] = [
     "ParamResult",
     "MotorStateResult",
     "CANPacket",
+    "CANHelper",
+    "CANInterfaceStatus",
+    "CANInterfaceConfig",
     "CanFrame",
     "CanFdFrame",
     "MITParam",
@@ -62,6 +69,7 @@ __all__: list[str] = [
     "DamiaoCANGroup",
     "DamiaoCANRefreshResult",
     "CANSocketException",
+    "CANHelperException",
 ]
 ACC: MotorVariable  # value = MotorVariable.ACC
 COUNT: MotorVariable  # value = MotorVariable.COUNT

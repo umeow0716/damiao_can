@@ -48,6 +48,9 @@ __all__ = [
     # Helpers
     "CanPacketEncoder",
     "CanPacketDecoder",
+    "CANHelper",
+    "CANInterfaceStatus",
+    "CANInterfaceConfig",
 
     # Main C++ classes
     "Motor",
@@ -63,4 +66,5 @@ __all__ = [
 
     # Exceptions
     "CANSocketException",
+    "CANHelperException",
 ]

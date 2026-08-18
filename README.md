@@ -115,6 +115,39 @@ candump can0
 
 ---
 
+## CAN interface helper
+
+`CANHelper` can inspect a SocketCAN interface without root privileges. Read-only probes do not invoke `sudo`.
+
+```python
+import damiao_can as dc
+
+helper = dc.CANHelper("can0")
+status = helper.status()
+
+print(status.exists, status.is_can, status.up, status.mtu)
+print(status.bitrate, status.dbitrate, status.fd_enabled)
+```
+
+Configuration is explicit. If the process already has `CAP_NET_ADMIN`, it is used directly. Otherwise the helper starts `sudo` as a child process and lets `sudo` request authorization from the controlling terminal. Passwords are never passed through the Python/C++ API.
+
+```python
+config = dc.CANInterfaceConfig()
+config.bitrate = 1_000_000
+config.dbitrate = 5_000_000
+config.fd_enabled = True
+config.sample_point = 0.75
+config.dsample_point = 0.75
+config.dsjw = 2
+config.restart_ms = 100
+
+helper.configure(config)
+```
+
+A successfully constructed `DamiaoCAN` also exposes the helper as `device.can_helper`. Use a standalone `CANHelper` when the interface may not exist yet, because `DamiaoCAN` still opens its SocketCAN socket during construction.
+
+---
+
 ## Basic Python Usage
 
 ```python
