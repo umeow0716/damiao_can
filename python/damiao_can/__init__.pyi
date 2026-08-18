@@ -32,6 +32,7 @@ from damiao_can.damiao_can import MotorType
 from damiao_can.damiao_can import MotorVariable
 from damiao_can.damiao_can import DamiaoCAN
 from damiao_can.damiao_can import DamiaoCANGroup
+from damiao_can.damiao_can import DamiaoCANGroupRecvResult
 from damiao_can.damiao_can import DamiaoCANRecvResult
 from damiao_can.damiao_can import ParamResult
 from damiao_can.damiao_can import PosForceParam
@@ -67,6 +68,7 @@ __all__: list[str] = [
     "MotorComponent",
     "DamiaoCAN",
     "DamiaoCANGroup",
+    "DamiaoCANGroupRecvResult",
     "DamiaoCANRecvResult",
     "CANSocketException",
     "CANHelperException",

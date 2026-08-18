@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstddef>
+#include <iosfwd>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -10,13 +12,23 @@
 
 namespace damiao_can::can::socket {
 
-struct DamiaoCANRecvResult {
-    std::string interface;
-    int received = 0;
-    int expected = 0;
-    bool ok = false;
-    std::string error;
+class DamiaoCANGroupRecvResult {
+public:
+    DamiaoCANGroupRecvResult() = default;
+    explicit DamiaoCANGroupRecvResult(std::vector<DamiaoCANRecvResult> results);
+
+    std::size_t size() const noexcept { return results_.size(); }
+
+    DamiaoCANRecvResult get(std::optional<std::size_t> index = std::nullopt,
+                            std::optional<std::string> can_id = std::nullopt) const;
+
+    std::string to_string() const;
+
+private:
+    std::vector<DamiaoCANRecvResult> results_;
 };
+
+std::ostream& operator<<(std::ostream& os, const DamiaoCANGroupRecvResult& result);
 
 class DamiaoCANGroup {
 public:
@@ -42,7 +54,7 @@ public:
 
     void flush_rx();
     void refresh_all();
-    std::vector<DamiaoCANRecvResult> recv_all(int timeout_us = 500);
+    DamiaoCANGroupRecvResult recv_all(int timeout_us = 500);
 
 private:
     struct Worker;

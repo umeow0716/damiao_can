@@ -63,6 +63,7 @@ __all__ = [
     "DamiaoCAN",
     "DamiaoCANGroup",
     "DamiaoCANRecvResult",
+    "DamiaoCANGroupRecvResult",
 
     # Exceptions
     "CANSocketException",

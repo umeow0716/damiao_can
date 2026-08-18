@@ -153,7 +153,7 @@ A successfully constructed `DamiaoCAN` also exposes the helper as `device.can_he
 ```python
 import damiao_can as dc
 
-device = dc.DamiaoCAN("can0", True)  # True = CAN-FD enabled
+device = dc.DamiaoCAN("can0", True)
 
 device.init_motors(
     [dc.MotorType.DM4310],
@@ -166,23 +166,28 @@ device.enable_all()
 
 device.flush_rx()
 device.refresh_all()
-received = device.recv_all()
-print("received frames:", received)
+result = device.recv_all()
+print(result)
+# {can_interface: "can0", expected: 1, received: 1, missing: [], ok: True}
+# Properties: can_interface, expect, received, missing, ok.
 
-For multiple CAN interfaces, `DamiaoCANGroup` exposes the same receive-flow helpers:
+# The `missing` property contains motor send IDs. The result formatter displays
+# those IDs as hexadecimal values such as 0x01.
 
-```python
+# Multiple CAN interfaces use the same explicit receive flow. flush_rx() and
+# refresh_all() iterate over each CAN device; recv_all() uses one receive
+# worker thread per CAN interface.
+group = dc.DamiaoCANGroup(["can0", "can1"], True)
 group.flush_rx()
 group.refresh_all()
 results = group.recv_all()
-```
+print(results)
 
-`flush_rx()` and `refresh_all()` simply iterate over each CAN device. `recv_all()` keeps one receive worker thread per CAN interface.
+# Lookup by index:
+print(results.get(index=0))
 
-for motor in device.get_motors():
-    print("position:", motor.get_position())
-    print("velocity:", motor.get_velocity())
-    print("torque:", motor.get_torque())
+# Lookup by CAN interface. can_id takes priority when both arguments are set:
+print(results.get(index=999, can_id="can1"))
 
 device.disable_all()
 ```

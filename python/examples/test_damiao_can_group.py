@@ -82,17 +82,14 @@ def main() -> None:
             results = group.recv_all(timeout_us=500)
 
             print(f"\nstep {step}")
+            print(results)
 
-            for result in results:
-                status = "OK" if result.ok else "MISS"
-                print(
-                    f"{result.interface}: "
-                    f"{result.received}/{result.expected} "
-                    f"{status}"
-                )
-
-                if result.error:
-                    print(f"  error: {result.error}")
+            # get() accepts an index or CAN interface name. If both are
+            # supplied, can_id takes priority.
+            first_result = results.get(index=0)
+            same_result = results.get(
+                index=999, can_id=first_result.can_interface)
+            assert same_result.can_interface == first_result.can_interface
 
             for can_interface in can_interfaces:
                 device = group.get_device(can_interface)

@@ -2,12 +2,64 @@
 #include <damiao_can/can/socket/damiao_can_group.hpp>
 #include <exception>
 #include <mutex>
+#include <ostream>
 #include <set>
+#include <sstream>
 #include <stdexcept>
 #include <thread>
 #include <utility>
 
 namespace damiao_can::can::socket {
+
+DamiaoCANGroupRecvResult::DamiaoCANGroupRecvResult(std::vector<DamiaoCANRecvResult> results)
+    : results_(std::move(results)) {}
+
+DamiaoCANRecvResult DamiaoCANGroupRecvResult::get(std::optional<std::size_t> index,
+                                                  std::optional<std::string> can_id) const {
+    if (can_id.has_value()) {
+        for (const auto& result : results_) {
+            if (result.can_interface == *can_id) {
+                return result;
+            }
+        }
+
+        throw std::out_of_range("CAN interface not found in recv result: " + *can_id);
+    }
+
+    if (!index.has_value()) {
+        throw std::invalid_argument("get() requires index or can_id");
+    }
+
+    if (*index >= results_.size()) {
+        throw std::out_of_range("DamiaoCANGroupRecvResult index out of range");
+    }
+
+    return results_[*index];
+}
+
+std::string DamiaoCANGroupRecvResult::to_string() const {
+    std::ostringstream os;
+    os << "[";
+
+    if (!results_.empty()) {
+        os << "\n";
+    }
+
+    for (std::size_t i = 0; i < results_.size(); ++i) {
+        os << "  " << results_[i];
+        if (i + 1 < results_.size()) {
+            os << ",";
+        }
+        os << "\n";
+    }
+
+    os << "]";
+    return os.str();
+}
+
+std::ostream& operator<<(std::ostream& os, const DamiaoCANGroupRecvResult& result) {
+    return os << result.to_string();
+}
 
 struct DamiaoCANGroup::Worker {
     explicit Worker(std::unique_ptr<DamiaoCAN> device_) : device(std::move(device_)) {}
@@ -54,6 +106,7 @@ struct DamiaoCANGroup::Worker {
 
             timeout_us = new_timeout_us;
             done = false;
+            error = nullptr;
             request = true;
         }
 
@@ -65,11 +118,11 @@ struct DamiaoCANGroup::Worker {
         cv.wait(lock, [this]() { return done || stop; });
 
         if (!done && stop) {
-            DamiaoCANRecvResult stopped_result;
-            stopped_result.interface = device ? device->can_interface() : "";
-            stopped_result.ok = false;
-            stopped_result.error = "DamiaoCANGroup worker stopped before completing operation";
-            return stopped_result;
+            throw std::runtime_error("DamiaoCANGroup worker stopped before completing recv_all");
+        }
+
+        if (error) {
+            std::rethrow_exception(error);
         }
 
         return result;
@@ -91,35 +144,24 @@ struct DamiaoCANGroup::Worker {
                 request = false;
             }
 
-            DamiaoCANRecvResult local_result = execute_recv_all(local_timeout_us);
+            DamiaoCANRecvResult local_result;
+            std::exception_ptr local_error;
+
+            try {
+                local_result = device->recv_all(local_timeout_us);
+            } catch (...) {
+                local_error = std::current_exception();
+            }
 
             {
                 std::lock_guard<std::mutex> lock(mutex);
                 result = std::move(local_result);
+                error = local_error;
                 done = true;
             }
 
             cv.notify_all();
         }
-    }
-
-    DamiaoCANRecvResult execute_recv_all(int local_timeout_us) noexcept {
-        DamiaoCANRecvResult local_result;
-        local_result.interface = device->can_interface();
-
-        try {
-            local_result.expected = device->expected_response_count();
-            local_result.received = device->recv_all(local_timeout_us);
-            local_result.ok = (local_result.received == local_result.expected);
-        } catch (const std::exception& e) {
-            local_result.ok = false;
-            local_result.error = e.what();
-        } catch (...) {
-            local_result.ok = false;
-            local_result.error = "Unknown exception in DamiaoCANGroup worker";
-        }
-
-        return local_result;
     }
 
     std::unique_ptr<DamiaoCAN> device;
@@ -133,6 +175,7 @@ struct DamiaoCANGroup::Worker {
 
     int timeout_us = 500;
     DamiaoCANRecvResult result;
+    std::exception_ptr error;
 };
 
 DamiaoCANGroup::DamiaoCANGroup(const std::vector<std::string>& can_interfaces, bool enable_fd) {
@@ -251,7 +294,7 @@ void DamiaoCANGroup::refresh_all() {
     }
 }
 
-std::vector<DamiaoCANRecvResult> DamiaoCANGroup::recv_all(int timeout_us) {
+DamiaoCANGroupRecvResult DamiaoCANGroup::recv_all(int timeout_us) {
     if (timeout_us < 0) {
         throw std::invalid_argument("timeout_us must be non-negative");
     }
@@ -269,7 +312,7 @@ std::vector<DamiaoCANRecvResult> DamiaoCANGroup::recv_all(int timeout_us) {
         results.push_back(worker->wait_result());
     }
 
-    return results;
+    return DamiaoCANGroupRecvResult(std::move(results));
 }
 
 }  // namespace damiao_can::can::socket

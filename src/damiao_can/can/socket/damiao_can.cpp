@@ -18,7 +18,10 @@
 #include <algorithm>
 #include <chrono>
 #include <damiao_can/can/socket/damiao_can.hpp>
+#include <iomanip>
+#include <ostream>
 #include <set>
+#include <sstream>
 
 namespace damiao_can::can::socket {
 
@@ -101,7 +104,29 @@ void DamiaoCAN::posforce_control_all(
     motor_collection_->posforce_control_all(posforce_params);
 }
 
-int DamiaoCAN::recv_all(int timeout_us) {
+std::string DamiaoCANRecvResult::to_string() const {
+    std::ostringstream os;
+    os << "{can_interface: \"" << can_interface << "\", expected: " << expect
+       << ", received: " << received << ", missing: [";
+
+    for (std::size_t i = 0; i < missing.size(); ++i) {
+        if (i != 0) {
+            os << ", ";
+        }
+
+        os << "0x" << std::hex << std::nouppercase << std::setw(2) << std::setfill('0')
+           << missing[i] << std::dec << std::setfill(' ');
+    }
+
+    os << "], ok: " << (ok ? "True" : "False") << "}";
+    return os.str();
+}
+
+std::ostream& operator<<(std::ostream& os, const DamiaoCANRecvResult& result) {
+    return os << result.to_string();
+}
+
+DamiaoCANRecvResult DamiaoCAN::recv_all(int timeout_us) {
     using clock = std::chrono::steady_clock;
     using microseconds = std::chrono::microseconds;
 
@@ -109,9 +134,15 @@ int DamiaoCAN::recv_all(int timeout_us) {
         throw std::invalid_argument("timeout_us must be non-negative");
     }
 
+    DamiaoCANRecvResult result;
+    result.can_interface = can_interface_;
+
     const auto& devices = master_can_device_collection_->get_devices();
+    result.expect = static_cast<int>(devices.size());
+
     if (devices.empty()) {
-        return 0;
+        result.ok = true;
+        return result;
     }
 
     std::set<canid_t> responded_ids;
@@ -155,7 +186,17 @@ int DamiaoCAN::recv_all(int timeout_us) {
         }
     }
 
-    return static_cast<int>(responded_ids.size());
+    result.received = static_cast<int>(responded_ids.size());
+
+    for (const auto& [recv_id, device] : devices) {
+        if (responded_ids.find(recv_id) == responded_ids.end()) {
+            result.missing.push_back(static_cast<uint32_t>(device->get_send_can_id()));
+        }
+    }
+
+    std::sort(result.missing.begin(), result.missing.end());
+    result.ok = result.missing.empty();
+    return result;
 }
 
 int DamiaoCAN::flush_rx() {

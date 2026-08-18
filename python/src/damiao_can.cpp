@@ -507,12 +507,23 @@ NB_MODULE(damiao_can, m) {
         .def("expected_response_count", &DamiaoCAN::expected_response_count);
 
     nb::class_<DamiaoCANRecvResult>(m, "DamiaoCANRecvResult")
-        .def(nb::init<>())
-        .def_rw("interface", &DamiaoCANRecvResult::interface)
-        .def_rw("received", &DamiaoCANRecvResult::received)
-        .def_rw("expected", &DamiaoCANRecvResult::expected)
-        .def_rw("ok", &DamiaoCANRecvResult::ok)
-        .def_rw("error", &DamiaoCANRecvResult::error);
+        .def_ro("can_interface", &DamiaoCANRecvResult::can_interface)
+        .def_ro("expect", &DamiaoCANRecvResult::expect)
+        .def_ro("received", &DamiaoCANRecvResult::received)
+        .def_ro("ok", &DamiaoCANRecvResult::ok)
+        .def_ro("missing", &DamiaoCANRecvResult::missing)
+        .def("__str__", &DamiaoCANRecvResult::to_string)
+        .def("__repr__", &DamiaoCANRecvResult::to_string);
+
+    nb::class_<DamiaoCANGroupRecvResult>(m, "DamiaoCANGroupRecvResult")
+        .def("size", &DamiaoCANGroupRecvResult::size)
+        .def(
+            "get",
+            [](const DamiaoCANGroupRecvResult& self, std::optional<std::size_t> index,
+               std::optional<std::string> can_id) { return self.get(index, can_id); },
+            nb::arg("index") = nb::none(), nb::arg("can_id") = nb::none())
+        .def("__str__", &DamiaoCANGroupRecvResult::to_string)
+        .def("__repr__", &DamiaoCANGroupRecvResult::to_string);
 
     nb::class_<DamiaoCANGroup>(m, "DamiaoCANGroup")
         .def(nb::init<const std::vector<std::string>&, bool>(), nb::arg("can_interfaces"),
