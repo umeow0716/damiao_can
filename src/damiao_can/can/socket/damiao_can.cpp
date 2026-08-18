@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <algorithm>
-#include <chrono>
-#include <set>
-
 #include <linux/can.h>
 #include <linux/can/raw.h>
 
+#include <algorithm>
+#include <chrono>
 #include <damiao_can/can/socket/damiao_can.hpp>
+#include <set>
 
 namespace damiao_can::can::socket {
 
@@ -97,7 +96,8 @@ void DamiaoCAN::vel_control_all(const std::vector<damiao_motor::VelParam>& vel_p
 void DamiaoCAN::posforce_control_one(int i, const damiao_motor::PosForceParam& posforce_param) {
     motor_collection_->posforce_control_one(i, posforce_param);
 }
-void DamiaoCAN::posforce_control_all(const std::vector<damiao_motor::PosForceParam>& posforce_params) {
+void DamiaoCAN::posforce_control_all(
+    const std::vector<damiao_motor::PosForceParam>& posforce_params) {
     motor_collection_->posforce_control_all(posforce_params);
 }
 
@@ -172,8 +172,7 @@ int DamiaoCAN::recv_expected_responses(int timeout_us, int expected_responses) {
         if (now >= deadline) {
             return 0;
         }
-        return static_cast<int>(
-            std::chrono::duration_cast<microseconds>(deadline - now).count());
+        return static_cast<int>(std::chrono::duration_cast<microseconds>(deadline - now).count());
     };
 
     while (static_cast<int>(responded_ids.size()) < target_count) {

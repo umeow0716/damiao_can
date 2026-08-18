@@ -15,11 +15,11 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <damiao_can/can/socket/damiao_can.hpp>
+#include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <iomanip>
 #include <iostream>
 #include <map>
-#include <damiao_can/can/socket/damiao_can.hpp>
-#include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <set>
 #include <sstream>
 #include <thread>
@@ -130,11 +130,11 @@ int run_discover(const std::string& interface, int max_id, bool full_scan) {
 
             for (uint32_t rid : recv_candidates) {
                 try {
-                    damiao_can::can::socket::DamiaoCAN damiao_can(interface,
-                                                          (setting.bitrate != setting.dbitrate));
+                    damiao_can::can::socket::DamiaoCAN damiao_can(
+                        interface, (setting.bitrate != setting.dbitrate));
 
                     damiao_can.init_motors({damiao_can::damiao_motor::MotorType::DM4310},
-                                            {(uint32_t)id}, {rid});
+                                           {(uint32_t)id}, {rid});
                     damiao_can.set_callback_mode_all(damiao_can::damiao_motor::CallbackMode::PARAM);
 
                     bool detected = false;

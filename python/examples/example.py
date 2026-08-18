@@ -33,7 +33,7 @@ device.recv_all()
 # return to zero position
 device.set_callback_mode_all(oa.CallbackMode.STATE)
 device.mit_control_all([oa.MITParam(2, 0.5, 0, 0, 0),
-                               oa.MITParam(2, 0.5, 0, 0, 0)])
+                        oa.MITParam(2, 0.5, 0, 0, 0)])
 
 device.recv_all()
 

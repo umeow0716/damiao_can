@@ -15,10 +15,10 @@
 #include <array>
 #include <cmath>
 #include <cstring>
-#include <iostream>
 #include <damiao_can/damiao_motor/dm_motor.hpp>
 #include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <damiao_can/damiao_motor/dm_motor_control.hpp>
+#include <iostream>
 
 namespace damiao_can::damiao_motor {
 
@@ -162,8 +162,8 @@ std::vector<uint8_t> CanPacketEncoder::pack_posvel_control_data(
     return {pb[0], pb[1], pb[2], pb[3], vb[0], vb[1], vb[2], vb[3]};
 }
 
-std::vector<uint8_t> CanPacketEncoder::pack_vel_control_data(
-    [[maybe_unused]] MotorType motor_type, const VelParam& vel_param) {
+std::vector<uint8_t> CanPacketEncoder::pack_vel_control_data([[maybe_unused]] MotorType motor_type,
+                                                             const VelParam& vel_param) {
     auto vb = float_to_uint8s(static_cast<float>(vel_param.dq));
 
     // Pack into 8 bytes: [vel(4)][0][0][0][0]

@@ -13,11 +13,11 @@
 // limitations under the License.
 
 #include <cmath>
-#include <iostream>
 #include <damiao_can/damiao_motor/dm_motor.hpp>
 #include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <damiao_can/damiao_motor/dm_motor_control.hpp>
 #include <damiao_can/damiao_motor/dm_motor_device.hpp>
+#include <iostream>
 
 namespace damiao_can::damiao_motor {
 

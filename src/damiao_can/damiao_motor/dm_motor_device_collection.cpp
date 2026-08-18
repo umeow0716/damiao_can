@@ -15,8 +15,8 @@
 #include <linux/can.h>
 #include <linux/can/raw.h>
 
-#include <iostream>
 #include <damiao_can/damiao_motor/dm_motor_device_collection.hpp>
+#include <iostream>
 
 namespace damiao_can::damiao_motor {
 

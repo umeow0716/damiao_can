@@ -21,8 +21,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <iostream>
 #include <damiao_can/canbus/can_socket.hpp>
+#include <iostream>
 
 namespace damiao_can::canbus {
 

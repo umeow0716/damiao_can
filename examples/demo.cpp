@@ -15,9 +15,9 @@
 #include <atomic>
 #include <chrono>
 #include <csignal>
-#include <iostream>
 #include <damiao_can/can/socket/damiao_can.hpp>
 #include <damiao_can/damiao_motor/dm_motor_constants.hpp>
+#include <iostream>
 #include <thread>
 
 int main() {
@@ -27,11 +27,13 @@ int main() {
 
         // Initialize DamiaoCAN with CAN interface and enable CAN-FD
         std::cout << "Initializing DamiaoCAN CAN..." << std::endl;
-        damiao_can::can::socket::DamiaoCAN damiao_can("can0", true);  // Use CAN-FD on can0 interface
+        damiao_can::can::socket::DamiaoCAN damiao_can("can0",
+                                                      true);  // Use CAN-FD on can0 interface
 
         // Initialize motors
         std::vector<damiao_can::damiao_motor::MotorType> motor_types = {
-            damiao_can::damiao_motor::MotorType::DM4310, damiao_can::damiao_motor::MotorType::DM4310};
+            damiao_can::damiao_motor::MotorType::DM4310,
+            damiao_can::damiao_motor::MotorType::DM4310};
         std::vector<uint32_t> send_can_ids = {0x01, 0x02};
         std::vector<uint32_t> recv_can_ids = {0x11, 0x12};
         damiao_can.init_motors(motor_types, send_can_ids, recv_can_ids);
@@ -66,12 +68,12 @@ int main() {
 
         // Control motors with position control
         damiao_can.mit_control_all({damiao_can::damiao_motor::MITParam{2, 1, 0, 0, 0},
-                                           damiao_can::damiao_motor::MITParam{2, 1, 0, 0, 0}});
+                                    damiao_can::damiao_motor::MITParam{2, 1, 0, 0, 0}});
         damiao_can.recv_all(500);
 
         // Control motors with torque control
         damiao_can.mit_control_all({damiao_can::damiao_motor::MITParam{0, 0, 0, 0, 0.1},
-                                           damiao_can::damiao_motor::MITParam{0, 0, 0, 0, 0.1}});
+                                    damiao_can::damiao_motor::MITParam{0, 0, 0, 0, 0.1}});
         damiao_can.recv_all(500);
 
         for (int i = 0; i < 10; i++) {

@@ -73,7 +73,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.23)
 else()
   target_include_directories(
     damiao_can PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                       $<INSTALL_INTERFACE:include>)
+                      $<INSTALL_INTERFACE:include>)
   install(TARGETS damiao_can EXPORT damiao_can_export)
   install(DIRECTORY include/damiao_can TYPE INCLUDE)
 endif()
@@ -108,8 +108,7 @@ if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
 else()
   set(PKG_CONFIG_LIBDIR "\${prefix}/${CMAKE_INSTALL_LIBDIR}")
 endif()
-configure_file(damiao-can.pc.in ${CMAKE_CURRENT_BINARY_DIR}/damiao-can.pc
-               @ONLY)
+configure_file(damiao-can.pc.in ${CMAKE_CURRENT_BINARY_DIR}/damiao-can.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/damiao-can.pc
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 

@@ -21,9 +21,9 @@
 #include <linux/can.h>
 #include <linux/can/raw.h>
 
-#include <damiao_can/can/socket/motor_component.hpp>
-#include <damiao_can/can/socket/damiao_can_group.hpp>
 #include <damiao_can/can/socket/damiao_can.hpp>
+#include <damiao_can/can/socket/damiao_can_group.hpp>
+#include <damiao_can/can/socket/motor_component.hpp>
 #include <damiao_can/canbus/can_device.hpp>
 #include <damiao_can/canbus/can_device_collection.hpp>
 #include <damiao_can/canbus/can_socket.hpp>
@@ -193,10 +193,7 @@ NB_MODULE(damiao_can, m) {
     nb::class_<VelParam>(m, "VelParam")
         .def(nb::init<>())
         .def(
-            "__init__",
-            [](VelParam* param, double dq) {
-                new (param) VelParam(VelParam{dq});
-            },
+            "__init__", [](VelParam* param, double dq) { new (param) VelParam(VelParam{dq}); },
             nb::arg("dq"))
         .def_rw("dq", &VelParam::dq);
 
@@ -248,9 +245,8 @@ NB_MODULE(damiao_can, m) {
         .def_static("create_posvel_control_command",
                     &CanPacketEncoder::create_posvel_control_command, nb::arg("motor"),
                     nb::arg("posvel_param"))
-        .def_static("create_vel_control_command",
-                    &CanPacketEncoder::create_vel_control_command, nb::arg("motor"),
-                    nb::arg("vel_param"))
+        .def_static("create_vel_control_command", &CanPacketEncoder::create_vel_control_command,
+                    nb::arg("motor"), nb::arg("vel_param"))
         .def_static("create_posforce_control_command",
                     &CanPacketEncoder::create_posforce_control_command, nb::arg("motor"),
                     nb::arg("posforce_param"))
@@ -415,8 +411,7 @@ NB_MODULE(damiao_can, m) {
              nb::arg("posvel_params"))
         .def("vel_control_one", &DMDeviceCollection::vel_control_one, nb::arg("index"),
              nb::arg("vel_param"))
-        .def("vel_control_all", &DMDeviceCollection::vel_control_all,
-             nb::arg("vel_params"))
+        .def("vel_control_all", &DMDeviceCollection::vel_control_all, nb::arg("vel_params"))
         .def("posforce_control_one", &DMDeviceCollection::posforce_control_one, nb::arg("index"),
              nb::arg("posforce_param"))
         .def("posforce_control_all", &DMDeviceCollection::posforce_control_all,
@@ -431,7 +426,6 @@ NB_MODULE(damiao_can, m) {
         .def("init_motor_devices", &MotorComponent::init_motor_devices, nb::arg("motor_types"),
              nb::arg("send_can_ids"), nb::arg("recv_can_ids"), nb::arg("use_fd"),
              nb::arg("control_modes") = std::vector<ControlMode>{});
-
 
     // DamiaoCAN class (main high-level interface)
     nb::class_<DamiaoCAN>(m, "DamiaoCAN")
@@ -456,23 +450,20 @@ NB_MODULE(damiao_can, m) {
         .def("set_control_mode_one", &DamiaoCAN::set_control_mode_one, nb::arg("index"),
              nb::arg("mode"))
         .def("set_control_mode_all", &DamiaoCAN::set_control_mode_all, nb::arg("mode"))
-        .def("mit_control_one", &DamiaoCAN::mit_control_one, nb::arg("index"),
-             nb::arg("mit_param"))
+        .def("mit_control_one", &DamiaoCAN::mit_control_one, nb::arg("index"), nb::arg("mit_param"))
         .def("mit_control_all", &DamiaoCAN::mit_control_all, nb::arg("mit_params"))
         .def("posvel_control_one", &DamiaoCAN::posvel_control_one, nb::arg("index"),
              nb::arg("posvel_param"))
         .def("posvel_control_all", &DamiaoCAN::posvel_control_all, nb::arg("posvel_params"))
-        .def("vel_control_one", &DamiaoCAN::vel_control_one, nb::arg("index"),
-             nb::arg("vel_param"))
+        .def("vel_control_one", &DamiaoCAN::vel_control_one, nb::arg("index"), nb::arg("vel_param"))
         .def("vel_control_all", &DamiaoCAN::vel_control_all, nb::arg("vel_params"))
         .def("posforce_control_one", &DamiaoCAN::posforce_control_one, nb::arg("index"),
              nb::arg("posforce_param"))
-        .def("posforce_control_all", &DamiaoCAN::posforce_control_all,
-             nb::arg("posforce_params"))
+        .def("posforce_control_all", &DamiaoCAN::posforce_control_all, nb::arg("posforce_params"))
         .def("recv_all", &DamiaoCAN::recv_all, nb::arg("first_timeout_us") = 500)
         .def("flush_rx", &DamiaoCAN::flush_rx)
-        .def("refresh_all_and_recv", &DamiaoCAN::refresh_all_and_recv,
-             nb::arg("timeout_us") = 500, nb::call_guard<nb::gil_scoped_release>())
+        .def("refresh_all_and_recv", &DamiaoCAN::refresh_all_and_recv, nb::arg("timeout_us") = 500,
+             nb::call_guard<nb::gil_scoped_release>())
         .def("recv_wait_all", &DamiaoCAN::recv_wait_all, nb::arg("timeout_us") = 500,
              nb::call_guard<nb::gil_scoped_release>())
         .def("expected_response_count", &DamiaoCAN::expected_response_count);
@@ -486,29 +477,20 @@ NB_MODULE(damiao_can, m) {
         .def_rw("error", &DamiaoCANRefreshResult::error);
 
     nb::class_<DamiaoCANGroup>(m, "DamiaoCANGroup")
-        .def(nb::init<const std::vector<std::string>&, bool>(),
-             nb::arg("can_interfaces"),
+        .def(nb::init<const std::vector<std::string>&, bool>(), nb::arg("can_interfaces"),
              nb::arg("enable_fd") = false)
         .def("size", &DamiaoCANGroup::size)
-        .def(
-             "get_device",
+        .def("get_device",
              static_cast<DamiaoCAN& (DamiaoCANGroup::*)(std::size_t)>(&DamiaoCANGroup::get_device),
-             nb::arg("index"),
-             nb::rv_policy::reference_internal)
-        .def(
-             "get_device",
-             static_cast<DamiaoCAN& (DamiaoCANGroup::*)(const std::string&)>(&DamiaoCANGroup::get_device),
-             nb::arg("can_interface"),
-             nb::rv_policy::reference_internal)
+             nb::arg("index"), nb::rv_policy::reference_internal)
+        .def("get_device",
+             static_cast<DamiaoCAN& (DamiaoCANGroup::*)(const std::string&)>(
+                 &DamiaoCANGroup::get_device),
+             nb::arg("can_interface"), nb::rv_policy::reference_internal)
         .def("enable_all", &DamiaoCANGroup::enable_all)
         .def("disable_all", &DamiaoCANGroup::disable_all)
         .def("set_zero_all", &DamiaoCANGroup::set_zero_all)
-        .def(
-             "refresh_all_and_recv",
-             &DamiaoCANGroup::refresh_all_and_recv,
+        .def("refresh_all_and_recv", &DamiaoCANGroup::refresh_all_and_recv,
              nb::arg("timeout_us") = 500)
-        .def(
-             "recv_wait_all",
-             &DamiaoCANGroup::recv_wait_all,
-             nb::arg("timeout_us") = 500);
+        .def("recv_wait_all", &DamiaoCANGroup::recv_wait_all, nb::arg("timeout_us") = 500);
 }

@@ -15,18 +15,18 @@
 #include <linux/can.h>
 #include <linux/can/raw.h>
 
-#include <iostream>
 #include <damiao_can/can/socket/motor_component.hpp>
+#include <iostream>
 
 namespace damiao_can::can::socket {
 
 MotorComponent::MotorComponent(canbus::CANSocket& can_socket)
     : damiao_motor::DMDeviceCollection(can_socket) {}
 
-void MotorComponent::init_motor_devices(const std::vector<damiao_motor::MotorType>& motor_types,
-                                      const std::vector<canid_t>& send_can_ids,
-                                      const std::vector<canid_t>& recv_can_ids, bool use_fd,
-                                      const std::vector<damiao_motor::ControlMode>& control_modes) {
+void MotorComponent::init_motor_devices(
+    const std::vector<damiao_motor::MotorType>& motor_types,
+    const std::vector<canid_t>& send_can_ids, const std::vector<canid_t>& recv_can_ids, bool use_fd,
+    const std::vector<damiao_motor::ControlMode>& control_modes) {
     // Reserve space to prevent vector reallocation that would invalidate motor
     // references
     motors_.reserve(motor_types.size());

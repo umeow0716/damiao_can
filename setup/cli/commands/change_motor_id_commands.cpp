@@ -15,8 +15,8 @@
 #include <linux/can.h>
 
 #include <chrono>
-#include <iostream>
 #include <damiao_can/canbus/can_socket.hpp>
+#include <iostream>
 #include <thread>
 
 #include "cli.hpp"

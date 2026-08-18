@@ -125,8 +125,8 @@ int main(int argc, char** argv) {
             target_ifaces = {"can0", "can1", "can2", "can3"};
         }
         int result = damiao_can::cli::run_can_configure(target_ifaces, cc_bitrate, cc_dbitrate,
-                                                     cc_fd_mode, cc_sample_point, cc_dsample_point,
-                                                     cc_dsjw, cc_restart_ms);
+                                                        cc_fd_mode, cc_sample_point,
+                                                        cc_dsample_point, cc_dsjw, cc_restart_ms);
         if (result != 0) {
             throw CLI::RuntimeError("can_configure failed.", result);
         }
@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
     change_id->callback([&]() {
         std::cout << ">>> Executing change_id on " << global_iface << "..." << std::endl;
         int result = damiao_can::cli::run_change_id(global_iface, current_id, new_slave_id,
-                                                 new_master_id, save_to_flash);
+                                                    new_master_id, save_to_flash);
         if (result != 0) {
             throw CLI::RuntimeError("ID change failed.", result);
         }
@@ -321,8 +321,7 @@ int main(int argc, char** argv) {
     static std::vector<std::string> ce_ids;
 
     clear_error
-        ->add_flag("-a,--all,!--no-all", ce_all,
-                   "Clear errors on all motors (IDs 1-8) [default]")
+        ->add_flag("-a,--all,!--no-all", ce_all, "Clear errors on all motors (IDs 1-8) [default]")
         ->default_val("true");
     clear_error->add_option("--id", ce_ids, "Target motor IDs (e.g. --id 1,2,3  or  --id 1 2 3)");
 
@@ -337,7 +336,8 @@ int main(int argc, char** argv) {
 
     // --- monitor: Live telemetry dashboard ---
     auto* monitor =
-        app.add_subcommand("monitor", "Live dashboard: pos/vel/torque/temp (default: motor IDs 1-8)")
+        app.add_subcommand("monitor",
+                           "Live dashboard: pos/vel/torque/temp (default: motor IDs 1-8)")
             ->group("[ Operation & Debug ]");
     static bool mon_all = true;
     static std::vector<std::string> mon_ids;

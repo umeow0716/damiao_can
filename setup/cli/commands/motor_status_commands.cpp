@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include <cmath>
-#include <iostream>
 #include <damiao_can/can/socket/damiao_can.hpp>
 #include <damiao_can/damiao_motor/dm_motor_constants.hpp>
+#include <iostream>
 #include <vector>
 
 #include "cli.hpp"

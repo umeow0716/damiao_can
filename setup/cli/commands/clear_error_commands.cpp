@@ -14,8 +14,8 @@
 
 #include <linux/can.h>
 
-#include <iostream>
 #include <damiao_can/canbus/can_socket.hpp>
+#include <iostream>
 #include <string>
 #include <vector>
 

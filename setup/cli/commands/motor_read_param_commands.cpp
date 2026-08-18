@@ -14,11 +14,11 @@
 
 #include <chrono>
 #include <cmath>
+#include <damiao_can/can/socket/damiao_can.hpp>
+#include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <iomanip>
 #include <iostream>
 #include <map>
-#include <damiao_can/can/socket/damiao_can.hpp>
-#include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <thread>
 #include <vector>
 
@@ -41,8 +41,10 @@ static const std::map<damiao_can::damiao_motor::RID, RIDInfo> RID_INFO = {
      {"Under-Voltage Threshold", "RW", "float", "(10.0, fmax]"}},
     {damiao_can::damiao_motor::RID::KT_Value,
      {"KT Value (Torque Const)", "RW", "float", "[0.0, fmax]"}},
-    {damiao_can::damiao_motor::RID::OT_Value, {"Over-Temp Threshold", "RW", "float", "[80.0, 200)"}},
-    {damiao_can::damiao_motor::RID::OC_Value, {"Over-Current Threshold", "RW", "float", "(0.0, 1.0)"}},
+    {damiao_can::damiao_motor::RID::OT_Value,
+     {"Over-Temp Threshold", "RW", "float", "[80.0, 200)"}},
+    {damiao_can::damiao_motor::RID::OC_Value,
+     {"Over-Current Threshold", "RW", "float", "(0.0, 1.0)"}},
     {damiao_can::damiao_motor::RID::ACC, {"Acceleration", "RW", "float", "(0.0, fmax)"}},
     {damiao_can::damiao_motor::RID::DEC, {"Deceleration", "RW", "float", "[-fmax, 0.0)"}},
     {damiao_can::damiao_motor::RID::MAX_SPD, {"Max Speed", "RW", "float", "(0.0, fmax]"}},
@@ -63,7 +65,8 @@ static const std::map<damiao_can::damiao_motor::RID, RIDInfo> RID_INFO = {
     {damiao_can::damiao_motor::RID::PMAX, {"Position Limit (PMAX)", "RW", "float", "(0.0, fmax]"}},
     {damiao_can::damiao_motor::RID::VMAX, {"Velocity Limit (VMAX)", "RW", "float", "(0.0, fmax]"}},
     {damiao_can::damiao_motor::RID::TMAX, {"Torque Limit (TMAX)", "RW", "float", "(0.0, fmax]"}},
-    {damiao_can::damiao_motor::RID::I_BW, {"Current Loop Bandwidth", "RW", "float", "[100.0, 1.0e4]"}},
+    {damiao_can::damiao_motor::RID::I_BW,
+     {"Current Loop Bandwidth", "RW", "float", "[100.0, 1.0e4]"}},
     {damiao_can::damiao_motor::RID::KP_ASR, {"Speed Loop KP", "RW", "float", "[0.0, fmax]"}},
     {damiao_can::damiao_motor::RID::KI_ASR, {"Speed Loop KI", "RW", "float", "[0.0, fmax]"}},
     {damiao_can::damiao_motor::RID::KP_APR, {"Position Loop KP", "RW", "float", "[0.0, fmax]"}},
@@ -71,7 +74,8 @@ static const std::map<damiao_can::damiao_motor::RID, RIDInfo> RID_INFO = {
     {damiao_can::damiao_motor::RID::OV_Value, {"Over-Voltage Threshold", "RW", "float", "TBD"}},
     {damiao_can::damiao_motor::RID::GREF, {"Gear Torque Efficiency", "RW", "float", "(0.0, 1.0]"}},
     {damiao_can::damiao_motor::RID::Deta, {"Speed Loop Damping", "RW", "float", "[1.0, 30.0]"}},
-    {damiao_can::damiao_motor::RID::V_BW, {"Velocity Loop Bandwidth", "RW", "float", "(0.0, 500.0)"}},
+    {damiao_can::damiao_motor::RID::V_BW,
+     {"Velocity Loop Bandwidth", "RW", "float", "(0.0, 500.0)"}},
     {damiao_can::damiao_motor::RID::IQ_c1, {"Current Loop C1", "RW", "float", "[100.0, 1.0e4]"}},
     {damiao_can::damiao_motor::RID::VL_c1, {"Velocity Loop C1", "RW", "float", "(0.0, 1.0e4]"}},
     {damiao_can::damiao_motor::RID::can_br, {"CAN Baudrate", "RW", "uint32", "[0, 9]"}},

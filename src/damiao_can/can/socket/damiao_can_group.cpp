@@ -1,12 +1,11 @@
 #include <condition_variable>
+#include <damiao_can/can/socket/damiao_can_group.hpp>
 #include <exception>
 #include <mutex>
 #include <set>
 #include <stdexcept>
 #include <thread>
 #include <utility>
-
-#include <damiao_can/can/socket/damiao_can_group.hpp>
 
 namespace damiao_can::can::socket {
 
@@ -18,9 +17,7 @@ enum class Operation {
 struct DamiaoCANGroup::Worker {
     explicit Worker(std::unique_ptr<DamiaoCAN> device_) : device(std::move(device_)) {}
 
-    ~Worker() {
-        stop_and_join();
-    }
+    ~Worker() { stop_and_join(); }
 
     Worker(const Worker&) = delete;
     Worker& operator=(const Worker&) = delete;
@@ -102,7 +99,8 @@ struct DamiaoCANGroup::Worker {
                 request = false;
             }
 
-            DamiaoCANRefreshResult local_result = execute_operation(local_operation, local_timeout_us);
+            DamiaoCANRefreshResult local_result =
+                execute_operation(local_operation, local_timeout_us);
 
             {
                 std::lock_guard<std::mutex> lock(mutex);
@@ -114,7 +112,8 @@ struct DamiaoCANGroup::Worker {
         }
     }
 
-    DamiaoCANRefreshResult execute_operation(Operation local_operation, int local_timeout_us) noexcept {
+    DamiaoCANRefreshResult execute_operation(Operation local_operation,
+                                             int local_timeout_us) noexcept {
         DamiaoCANRefreshResult local_result;
         local_result.interface = device->can_interface();
 
@@ -169,8 +168,8 @@ DamiaoCANGroup::DamiaoCANGroup(const std::vector<std::string>& can_interfaces, b
 
     for (const auto& can_interface : can_interfaces) {
         if (!seen_interfaces.insert(can_interface).second) {
-            throw std::invalid_argument(
-                "Duplicate CAN interface in DamiaoCANGroup: " + can_interface);
+            throw std::invalid_argument("Duplicate CAN interface in DamiaoCANGroup: " +
+                                        can_interface);
         }
     }
 

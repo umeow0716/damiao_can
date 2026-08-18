@@ -93,7 +93,8 @@ def bump_to_limit(device, joint_id, step_deg=0.2, kp=45.0, kd=1.2,
 
     while True:
         q_target += step_rad
-        device.mit_control_one(idx, oa.MITParam(kp, kd, q_target, 0.0, tau_cmd))
+        device.mit_control_one(idx, oa.MITParam(
+            kp, kd, q_target, 0.0, tau_cmd))
         device.recv_all()
         time.sleep(0.005)
 
@@ -146,7 +147,8 @@ def _run_right_sequence(device, mech_lim):
 
     d_j2 = bump_to_limit(device, JointID.J2, step_deg=-0.2)
     time.sleep(0.5)
-    interpolate(device, JointID.J2, np.deg2rad(10), interp_time=0.9, kp=280, kd=2.0)
+    interpolate(device, JointID.J2, np.deg2rad(
+        10), interp_time=0.9, kp=280, kd=2.0)
     time.sleep(0.5)
 
     d_j1 = bump_to_limit(device, JointID.J1, step_deg=-0.2, kp=280, kd=2.1)
@@ -202,7 +204,8 @@ def _run_left_sequence(device, mech_lim):
 
     d_j2 = bump_to_limit(device, JointID.J2)
     time.sleep(0.5)
-    interpolate(device, JointID.J2, -np.deg2rad(10), interp_time=0.9, kp=280, kd=2.0)
+    interpolate(device, JointID.J2, -np.deg2rad(10),
+                interp_time=0.9, kp=280, kd=2.0)
     time.sleep(0.5)
 
     d_j1 = bump_to_limit(device, JointID.J1, kp=280, kd=2.1)
@@ -231,7 +234,8 @@ def main():
     parser.add_argument(
         "--side", type=str, default="right", choices=["right", "left"]
     )
-    parser.add_argument("--robot-version", type=str, default="v2", choices=["v1", "v2"])
+    parser.add_argument("--robot-version", type=str,
+                        default="v2", choices=["v1", "v2"])
     args = parser.parse_args()
 
     if args.canport is None:

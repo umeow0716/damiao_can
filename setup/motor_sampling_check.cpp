@@ -15,10 +15,10 @@
 #include <algorithm>
 #include <chrono>
 #include <csignal>
-#include <iomanip>
-#include <iostream>
 #include <damiao_can/can/socket/damiao_can.hpp>
 #include <damiao_can/damiao_motor/dm_motor_constants.hpp>
+#include <iomanip>
+#include <iostream>
 #include <string>
 #include <thread>
 #include <vector>

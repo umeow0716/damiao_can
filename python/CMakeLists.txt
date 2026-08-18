@@ -34,7 +34,9 @@ endif()
 macro(dcp_prepare_fetchcontent)
   set(BUILD_SHARED_LIBS OFF)
   set(BUILD_TESTING OFF)
-  set(DAMIAO_CAN_BUILD_CLI OFF CACHE BOOL "Build DamiaoCAN CLI tools" FORCE)
+  set(DAMIAO_CAN_BUILD_CLI
+      OFF
+      CACHE BOOL "Build DamiaoCAN CLI tools" FORCE)
   set(CMAKE_COMPILE_WARNING_AS_ERROR FALSE)
   set(CMAKE_EXPORT_NO_PACKAGE_REGISTRY TRUE)
   set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
@@ -85,17 +87,17 @@ dcp_ensure_nanobind()
 function(dcp_ensure_damiao_can)
   # Prefer the parent repository when installing from this Git checkout.
   set(DAMIAO_CAN_LOCAL_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/..")
-  if(EXISTS "${DAMIAO_CAN_LOCAL_SOURCE_DIR}/include/damiao_can/can/socket/damiao_can.hpp"
+  if(EXISTS
+     "${DAMIAO_CAN_LOCAL_SOURCE_DIR}/include/damiao_can/can/socket/damiao_can.hpp"
      AND EXISTS "${DAMIAO_CAN_LOCAL_SOURCE_DIR}/CMakeLists.txt")
-    fetchcontent_declare(
-      damiao_can
-      ${DCP_FETCH_CONTENT_COMMON_OPTIONS}
-      SOURCE_DIR "${DAMIAO_CAN_LOCAL_SOURCE_DIR}")
+    fetchcontent_declare(damiao_can ${DCP_FETCH_CONTENT_COMMON_OPTIONS}
+                                    SOURCE_DIR "${DAMIAO_CAN_LOCAL_SOURCE_DIR}")
     dcp_prepare_fetchcontent()
     fetchcontent_makeavailable(damiao_can)
 
     if(damiao_can_SOURCE_DIR AND CMAKE_VERSION VERSION_LESS 3.28)
-      set_property(DIRECTORY "${damiao_can_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE)
+      set_property(DIRECTORY "${damiao_can_SOURCE_DIR}"
+                   PROPERTY EXCLUDE_FROM_ALL TRUE)
     endif()
 
     if(TARGET damiao_can AND NOT TARGET DamiaoCAN::damiao_can)
@@ -112,10 +114,6 @@ nanobind_add_module(damiao_can_python src/damiao_can.cpp)
 set_target_properties(damiao_can_python PROPERTIES OUTPUT_NAME "damiao_can")
 target_link_libraries(damiao_can_python PRIVATE DamiaoCAN::damiao_can)
 install(TARGETS damiao_can_python LIBRARY DESTINATION "damiao_can")
-install(
-  FILES
-    damiao_can/__init__.py
-    damiao_can/__init__.pyi
-    damiao_can/damiao_can.pyi
-    damiao_can/py.typed
-  DESTINATION "damiao_can")
+install(FILES damiao_can/__init__.py damiao_can/__init__.pyi
+              damiao_can/damiao_can.pyi damiao_can/py.typed
+        DESTINATION "damiao_can")

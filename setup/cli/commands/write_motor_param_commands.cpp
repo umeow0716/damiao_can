@@ -16,9 +16,9 @@
 
 #include <chrono>
 #include <cstring>
-#include <iostream>
 #include <damiao_can/canbus/can_socket.hpp>
 #include <damiao_can/damiao_motor/dm_motor_constants.hpp>
+#include <iostream>
 #include <thread>
 
 #include "cli.hpp"
