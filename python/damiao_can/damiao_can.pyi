@@ -433,9 +433,6 @@ class DamiaoCAN:
         """Create and return a new object."""
     def __init__(self, can_interface: str, enable_fd: bool = False) -> None:
         ...
-    @property
-    def can_helper(self) -> CANHelper:
-        ...
     def disable_all(self) -> None:
         ...
     def enable_all(self) -> None:

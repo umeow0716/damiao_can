@@ -17,6 +17,12 @@ pip install "git+https://github.com/umeow0716/damiao_can.git@main#subdirectory=p
 ```python
 import damiao_can as dc
 
+# Configure SocketCAN before DamiaoCAN creates its socket.
+helper = dc.CANHelper("can0")
+helper.set_down()
+helper.set_bitrate(1_000_000, 5_000_000, True)
+helper.set_up()
+
 # True enables CAN-FD socket support.
 device = dc.DamiaoCAN("can0", True)
 
@@ -39,10 +45,18 @@ print(result)
 device.disable_all()
 ```
 
-For multiple CAN interfaces:
+For multiple CAN interfaces, configure every interface before creating the group:
 
 ```python
-group = dc.DamiaoCANGroup(["can0", "can1"], True)
+interfaces = ["can0", "can1"]
+
+for interface in interfaces:
+    helper = dc.CANHelper(interface)
+    helper.set_down()
+    helper.set_bitrate(1_000_000, 5_000_000, True)
+    helper.set_up()
+
+group = dc.DamiaoCANGroup(interfaces, True)
 
 group.flush_rx()
 group.refresh_all()
@@ -70,7 +84,7 @@ python -m damiao_can drop-test --help
 
 ## CAN Interface Helper
 
-`CANHelper` provides SocketCAN interface inspection and configuration from Python.
+`CANHelper` is independent from `DamiaoCAN`. Use it before creating a device or group when the SocketCAN interface needs to be configured.
 
 ```python
 import damiao_can as dc
@@ -81,9 +95,11 @@ print(helper.status())
 helper.set_down()
 helper.set_bitrate(1_000_000, 5_000_000, True)
 helper.set_up()
+
+device = dc.DamiaoCAN("can0", True)
 ```
 
-Read-only status checks do not require root privileges. Configuration uses the process's existing network capability when available and otherwise requests authorization through `sudo`.
+Do not bring an interface down after `DamiaoCAN` or `DamiaoCANGroup` has created sockets for it. Read-only status checks do not require root privileges. Configuration uses the process's existing network capability when available and otherwise requests authorization through `sudo`.
 
 ## License
 

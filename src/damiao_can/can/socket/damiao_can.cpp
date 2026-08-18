@@ -26,7 +26,7 @@
 namespace damiao_can::can::socket {
 
 DamiaoCAN::DamiaoCAN(const std::string& can_interface, bool enable_fd)
-    : can_interface_(can_interface), enable_fd_(enable_fd), can_helper_(can_interface) {
+    : can_interface_(can_interface), enable_fd_(enable_fd) {
     can_socket_ = std::make_unique<canbus::CANSocket>(can_interface_, enable_fd_);
     master_can_device_collection_ = std::make_unique<canbus::CANDeviceCollection>(*can_socket_);
     motor_collection_ = std::make_unique<MotorComponent>(*can_socket_);

@@ -478,9 +478,6 @@ NB_MODULE(damiao_can, m) {
         .def("get_motor", &DamiaoCAN::get_motor, nb::arg("index"))
         .def("get_master_can_device_collection", &DamiaoCAN::get_master_can_device_collection,
              nb::rv_policy::reference)
-        .def_prop_ro("can_helper",
-                     static_cast<CANHelper& (DamiaoCAN::*)()>(&DamiaoCAN::get_can_helper),
-                     nb::rv_policy::reference_internal)
         .def("enable_all", &DamiaoCAN::enable_all)
         .def("disable_all", &DamiaoCAN::disable_all)
         .def("set_zero", &DamiaoCAN::set_zero, nb::arg("index"))

@@ -15,13 +15,14 @@
 import damiao_can as dc
 import time
 
-# Create DamiaoCAN instance
-device = dc.DamiaoCAN("can0", True)
+# Configure SocketCAN before creating DamiaoCAN.
+helper = dc.CANHelper("can0")
+helper.set_down()
+helper.set_bitrate(1_000_000, 5_000_000, True)
+helper.set_up()
 
-# Always reset the SocketCAN link before motor setup.
-device.can_helper.set_down()
-device.can_helper.set_bitrate(1_000_000, 5_000_000, True)
-device.can_helper.set_up()
+# Create the CAN socket only after the interface is ready.
+device = dc.DamiaoCAN("can0", True)
 
 # Initialize device motors
 motor_types = [dc.MotorType.DM4310]
