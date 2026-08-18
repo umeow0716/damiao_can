@@ -17,14 +17,14 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
-#include <openarm/can/socket/openarm.hpp>
-#include <openarm/damiao_motor/dm_motor_constants.hpp>
+#include <damiao_can/can/socket/damiao_can.hpp>
+#include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <thread>
 #include <vector>
 
 #include "cli.hpp"
 
-namespace openarm::cli {
+namespace damiao_can::cli {
 
 // ============================================================================
 // RID metadata: description, R/W, type, range
@@ -36,54 +36,54 @@ struct RIDInfo {
     std::string range;
 };
 
-static const std::map<openarm::damiao_motor::RID, RIDInfo> RID_INFO = {
-    {openarm::damiao_motor::RID::UV_Value,
+static const std::map<damiao_can::damiao_motor::RID, RIDInfo> RID_INFO = {
+    {damiao_can::damiao_motor::RID::UV_Value,
      {"Under-Voltage Threshold", "RW", "float", "(10.0, fmax]"}},
-    {openarm::damiao_motor::RID::KT_Value,
+    {damiao_can::damiao_motor::RID::KT_Value,
      {"KT Value (Torque Const)", "RW", "float", "[0.0, fmax]"}},
-    {openarm::damiao_motor::RID::OT_Value, {"Over-Temp Threshold", "RW", "float", "[80.0, 200)"}},
-    {openarm::damiao_motor::RID::OC_Value, {"Over-Current Threshold", "RW", "float", "(0.0, 1.0)"}},
-    {openarm::damiao_motor::RID::ACC, {"Acceleration", "RW", "float", "(0.0, fmax)"}},
-    {openarm::damiao_motor::RID::DEC, {"Deceleration", "RW", "float", "[-fmax, 0.0)"}},
-    {openarm::damiao_motor::RID::MAX_SPD, {"Max Speed", "RW", "float", "(0.0, fmax]"}},
-    {openarm::damiao_motor::RID::MST_ID, {"Master ID", "RW", "uint32", "[0, 0x7FF]"}},
-    {openarm::damiao_motor::RID::ESC_ID, {"Motor (ESC) ID", "RW", "uint32", "[0, 0x7FF]"}},
-    {openarm::damiao_motor::RID::TIMEOUT, {"CAN Timeout", "RW", "uint32", "[0, 2^32-1]"}},
-    {openarm::damiao_motor::RID::CTRL_MODE, {"Control Mode", "RW", "uint32", "[0, 4]"}},
-    {openarm::damiao_motor::RID::Damp, {"Damping Ratio", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::Inertia, {"Inertia", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::hw_ver, {"Hardware Version", "RO", "uint32", "/"}},
-    {openarm::damiao_motor::RID::sw_ver, {"Software Version", "RO", "uint32", "/"}},
-    {openarm::damiao_motor::RID::SN, {"Serial Number", "RO", "uint32", "/"}},
-    {openarm::damiao_motor::RID::NPP, {"Number of Pole Pairs", "RO", "uint32", "/"}},
-    {openarm::damiao_motor::RID::Rs, {"Stator Resistance (Rs)", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::LS, {"Stator Inductance (Ls)", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::Flux, {"Rotor Flux", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::Gr, {"Gear Ratio", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::PMAX, {"Position Limit (PMAX)", "RW", "float", "(0.0, fmax]"}},
-    {openarm::damiao_motor::RID::VMAX, {"Velocity Limit (VMAX)", "RW", "float", "(0.0, fmax]"}},
-    {openarm::damiao_motor::RID::TMAX, {"Torque Limit (TMAX)", "RW", "float", "(0.0, fmax]"}},
-    {openarm::damiao_motor::RID::I_BW, {"Current Loop Bandwidth", "RW", "float", "[100.0, 1.0e4]"}},
-    {openarm::damiao_motor::RID::KP_ASR, {"Speed Loop KP", "RW", "float", "[0.0, fmax]"}},
-    {openarm::damiao_motor::RID::KI_ASR, {"Speed Loop KI", "RW", "float", "[0.0, fmax]"}},
-    {openarm::damiao_motor::RID::KP_APR, {"Position Loop KP", "RW", "float", "[0.0, fmax]"}},
-    {openarm::damiao_motor::RID::KI_APR, {"Position Loop KI", "RW", "float", "[0.0, fmax]"}},
-    {openarm::damiao_motor::RID::OV_Value, {"Over-Voltage Threshold", "RW", "float", "TBD"}},
-    {openarm::damiao_motor::RID::GREF, {"Gear Torque Efficiency", "RW", "float", "(0.0, 1.0]"}},
-    {openarm::damiao_motor::RID::Deta, {"Speed Loop Damping", "RW", "float", "[1.0, 30.0]"}},
-    {openarm::damiao_motor::RID::V_BW, {"Velocity Loop Bandwidth", "RW", "float", "(0.0, 500.0)"}},
-    {openarm::damiao_motor::RID::IQ_c1, {"Current Loop C1", "RW", "float", "[100.0, 1.0e4]"}},
-    {openarm::damiao_motor::RID::VL_c1, {"Velocity Loop C1", "RW", "float", "(0.0, 1.0e4]"}},
-    {openarm::damiao_motor::RID::can_br, {"CAN Baudrate", "RW", "uint32", "[0, 9]"}},
-    {openarm::damiao_motor::RID::sub_ver, {"Sub Version", "RO", "uint32", "/"}},
-    {openarm::damiao_motor::RID::u_off, {"I-Phase U Offset", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::v_off, {"I-Phase V Offset", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::k1, {"Gain K1", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::k2, {"Gain K2", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::m_off, {"Mechanical Offset", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::dir, {"Motor Direction", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::p_m, {"Motor Position", "RO", "float", "/"}},
-    {openarm::damiao_motor::RID::xout, {"Output Shaft Position", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::OT_Value, {"Over-Temp Threshold", "RW", "float", "[80.0, 200)"}},
+    {damiao_can::damiao_motor::RID::OC_Value, {"Over-Current Threshold", "RW", "float", "(0.0, 1.0)"}},
+    {damiao_can::damiao_motor::RID::ACC, {"Acceleration", "RW", "float", "(0.0, fmax)"}},
+    {damiao_can::damiao_motor::RID::DEC, {"Deceleration", "RW", "float", "[-fmax, 0.0)"}},
+    {damiao_can::damiao_motor::RID::MAX_SPD, {"Max Speed", "RW", "float", "(0.0, fmax]"}},
+    {damiao_can::damiao_motor::RID::MST_ID, {"Master ID", "RW", "uint32", "[0, 0x7FF]"}},
+    {damiao_can::damiao_motor::RID::ESC_ID, {"Motor (ESC) ID", "RW", "uint32", "[0, 0x7FF]"}},
+    {damiao_can::damiao_motor::RID::TIMEOUT, {"CAN Timeout", "RW", "uint32", "[0, 2^32-1]"}},
+    {damiao_can::damiao_motor::RID::CTRL_MODE, {"Control Mode", "RW", "uint32", "[0, 4]"}},
+    {damiao_can::damiao_motor::RID::Damp, {"Damping Ratio", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::Inertia, {"Inertia", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::hw_ver, {"Hardware Version", "RO", "uint32", "/"}},
+    {damiao_can::damiao_motor::RID::sw_ver, {"Software Version", "RO", "uint32", "/"}},
+    {damiao_can::damiao_motor::RID::SN, {"Serial Number", "RO", "uint32", "/"}},
+    {damiao_can::damiao_motor::RID::NPP, {"Number of Pole Pairs", "RO", "uint32", "/"}},
+    {damiao_can::damiao_motor::RID::Rs, {"Stator Resistance (Rs)", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::LS, {"Stator Inductance (Ls)", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::Flux, {"Rotor Flux", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::Gr, {"Gear Ratio", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::PMAX, {"Position Limit (PMAX)", "RW", "float", "(0.0, fmax]"}},
+    {damiao_can::damiao_motor::RID::VMAX, {"Velocity Limit (VMAX)", "RW", "float", "(0.0, fmax]"}},
+    {damiao_can::damiao_motor::RID::TMAX, {"Torque Limit (TMAX)", "RW", "float", "(0.0, fmax]"}},
+    {damiao_can::damiao_motor::RID::I_BW, {"Current Loop Bandwidth", "RW", "float", "[100.0, 1.0e4]"}},
+    {damiao_can::damiao_motor::RID::KP_ASR, {"Speed Loop KP", "RW", "float", "[0.0, fmax]"}},
+    {damiao_can::damiao_motor::RID::KI_ASR, {"Speed Loop KI", "RW", "float", "[0.0, fmax]"}},
+    {damiao_can::damiao_motor::RID::KP_APR, {"Position Loop KP", "RW", "float", "[0.0, fmax]"}},
+    {damiao_can::damiao_motor::RID::KI_APR, {"Position Loop KI", "RW", "float", "[0.0, fmax]"}},
+    {damiao_can::damiao_motor::RID::OV_Value, {"Over-Voltage Threshold", "RW", "float", "TBD"}},
+    {damiao_can::damiao_motor::RID::GREF, {"Gear Torque Efficiency", "RW", "float", "(0.0, 1.0]"}},
+    {damiao_can::damiao_motor::RID::Deta, {"Speed Loop Damping", "RW", "float", "[1.0, 30.0]"}},
+    {damiao_can::damiao_motor::RID::V_BW, {"Velocity Loop Bandwidth", "RW", "float", "(0.0, 500.0)"}},
+    {damiao_can::damiao_motor::RID::IQ_c1, {"Current Loop C1", "RW", "float", "[100.0, 1.0e4]"}},
+    {damiao_can::damiao_motor::RID::VL_c1, {"Velocity Loop C1", "RW", "float", "(0.0, 1.0e4]"}},
+    {damiao_can::damiao_motor::RID::can_br, {"CAN Baudrate", "RW", "uint32", "[0, 9]"}},
+    {damiao_can::damiao_motor::RID::sub_ver, {"Sub Version", "RO", "uint32", "/"}},
+    {damiao_can::damiao_motor::RID::u_off, {"I-Phase U Offset", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::v_off, {"I-Phase V Offset", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::k1, {"Gain K1", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::k2, {"Gain K2", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::m_off, {"Mechanical Offset", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::dir, {"Motor Direction", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::p_m, {"Motor Position", "RO", "float", "/"}},
+    {damiao_can::damiao_motor::RID::xout, {"Output Shaft Position", "RO", "float", "/"}},
 };
 
 static const std::map<int, std::string> CTRL_MODE_NAMES = {
@@ -114,11 +114,11 @@ static void print_no_response_hint(uint32_t sid, uint32_t recv_id) {
 // ============================================================================
 // Main function
 // ============================================================================
-int run_read_params(const std::string& interface, bool use_arm_ids,
+int run_read_params(const std::string& interface, bool use_default_ids,
                     const std::vector<std::string>& custom_ids_str) {
     std::vector<uint32_t> send_ids;
 
-    if (use_arm_ids) {
+    if (use_default_ids) {
         for (uint32_t i = 1; i <= 8; ++i) send_ids.push_back(i);
     }
     for (const auto& id_str : custom_ids_str) {
@@ -137,26 +137,26 @@ int run_read_params(const std::string& interface, bool use_arm_ids,
 
     try {
         std::cout << ">>> Connecting to " << interface << " (FD Mode)..." << std::endl;
-        openarm::can::socket::OpenArm openarm(interface, true);
+        damiao_can::can::socket::DamiaoCAN damiao_can(interface, true);
 
-        std::vector<openarm::damiao_motor::MotorType> types(
-            send_ids.size(), openarm::damiao_motor::MotorType::DM4310);
+        std::vector<damiao_can::damiao_motor::MotorType> types(
+            send_ids.size(), damiao_can::damiao_motor::MotorType::DM4310);
         std::vector<uint32_t> recv_ids;
         for (auto id : send_ids) recv_ids.push_back(id + 0x10);
 
-        openarm.init_arm_motors(types, send_ids, recv_ids);
-        openarm.set_callback_mode_all(openarm::damiao_motor::CallbackMode::PARAM);
+        damiao_can.init_motors(types, send_ids, recv_ids);
+        damiao_can.set_callback_mode_all(damiao_can::damiao_motor::CallbackMode::PARAM);
 
         std::cout << ">>> Querying all registers for " << send_ids.size()
                   << " motors. Please wait...\n";
 
-        for (int r = 0; r < (int)openarm::damiao_motor::RID::COUNT; ++r) {
-            openarm.query_param_all(r);
+        for (int r = 0; r < (int)damiao_can::damiao_motor::RID::COUNT; ++r) {
+            damiao_can.query_param_all(r);
             std::this_thread::sleep_for(std::chrono::milliseconds(35));
-            openarm.recv_all();
+            damiao_can.recv_all();
         }
 
-        const auto& motors = openarm.get_arm().get_motors();
+        const auto& motors = damiao_can.get_motors();
         for (size_t i = 0; i < motors.size(); ++i) {
             uint32_t sid = send_ids[i];
             std::cout << "\n==================================================\n";
@@ -165,7 +165,7 @@ int run_read_params(const std::string& interface, bool use_arm_ids,
             std::cout << "==================================================\n";
 
             // Basic connectivity check
-            double mst = motors[i].get_param((int)openarm::damiao_motor::RID::MST_ID);
+            double mst = motors[i].get_param((int)damiao_can::damiao_motor::RID::MST_ID);
             if (!std::isfinite(mst) || mst == -1.0) {
                 print_no_response_hint(sid, recv_ids[i]);
                 continue;
@@ -178,12 +178,12 @@ int run_read_params(const std::string& interface, bool use_arm_ids,
             std::cout << std::string(80, '-') << "\n";
 
             int param_count = 0;
-            for (int r = 0; r < (int)openarm::damiao_motor::RID::COUNT; ++r) {
+            for (int r = 0; r < (int)damiao_can::damiao_motor::RID::COUNT; ++r) {
                 double val = motors[i].get_param(r);
                 if (!std::isfinite(val) || val == -1.0) continue;
 
                 param_count++;
-                using namespace openarm::damiao_motor;
+                using namespace damiao_can::damiao_motor;
                 RID reg = static_cast<RID>(r);
 
                 // Metadata
@@ -242,4 +242,4 @@ int run_read_params(const std::string& interface, bool use_arm_ids,
     return 0;
 }
 
-}  // namespace openarm::cli
+}  // namespace damiao_can::cli

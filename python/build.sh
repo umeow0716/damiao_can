@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Build script for OpenArm Python bindings
+# Build script for Damiao CAN Python bindings
 
 set -eu
 
@@ -22,7 +22,7 @@ set -eu
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-echo "Building OpenArm Python bindings..."
+echo "Building Damiao CAN Python bindings..."
 echo "Script directory: $SCRIPT_DIR"
 echo "Project root: $PROJECT_ROOT"
 
@@ -38,25 +38,13 @@ else
     echo "  conda create -n myenv python=3.x && conda activate myenv"
 fi
 
-# Build the C++ library first if needed
-if [ ! -d "$PROJECT_ROOT/build" ]; then
-    echo "Building C++ library..."
-    cmake \
-        -S "$PROJECT_ROOT" \
-        -B "$PROJECT_ROOT/build" \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -GNinja
-    cmake --build "$PROJECT_ROOT/build"
-    cmake --install "$PROJECT_ROOT/build"
-fi
-
-# Install in development mode
+# Build/install the Python package from this repository.
 echo "Installing in development mode..."
-pip install .
+pip install "$SCRIPT_DIR"
 
 echo "Build completed successfully!"
 echo ""
 echo "To test the installation, run:"
-echo "  python -c 'import openarm; print(openarm.__version__)'"
+echo "  python -c 'import damiao_can; print(damiao_can.__version__)'"
 echo ""
 echo "See examples/ directory for usage examples."

@@ -18,8 +18,8 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
-#include <openarm/can/socket/openarm.hpp>
-#include <openarm/damiao_motor/dm_motor_constants.hpp>
+#include <damiao_can/can/socket/damiao_can.hpp>
+#include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <set>
 #include <sstream>
 #include <thread>
@@ -27,7 +27,7 @@
 
 #include "cli.hpp"
 
-namespace openarm::cli {
+namespace damiao_can::cli {
 
 struct BaudSetting {
     int bitrate;
@@ -107,7 +107,7 @@ int run_discover(const std::string& interface, int max_id, bool full_scan) {
     const int total_bauds = static_cast<int>(baud_codes.size());
 
     std::cout << "=========================================================\n";
-    std::cout << " OPENARM DEEP DISCOVERY MODE\n";
+    std::cout << " DAMIAO CAN DEEP DISCOVERY MODE\n";
     std::cout << "---------------------------------------------------------\n";
     std::cout << " Mode: " << (full_scan ? "Full scan (12 baudrates)" : "Fast scan (1M/5M/8M/10M)")
               << "\n";
@@ -130,24 +130,24 @@ int run_discover(const std::string& interface, int max_id, bool full_scan) {
 
             for (uint32_t rid : recv_candidates) {
                 try {
-                    openarm::can::socket::OpenArm openarm(interface,
+                    damiao_can::can::socket::DamiaoCAN damiao_can(interface,
                                                           (setting.bitrate != setting.dbitrate));
 
-                    openarm.init_arm_motors({openarm::damiao_motor::MotorType::DM4310},
+                    damiao_can.init_motors({damiao_can::damiao_motor::MotorType::DM4310},
                                             {(uint32_t)id}, {rid});
-                    openarm.set_callback_mode_all(openarm::damiao_motor::CallbackMode::PARAM);
+                    damiao_can.set_callback_mode_all(damiao_can::damiao_motor::CallbackMode::PARAM);
 
                     bool detected = false;
                     for (int retry = 0; retry < 2; ++retry) {
-                        openarm.get_arm().query_param_all((int)openarm::damiao_motor::RID::MST_ID);
+                        damiao_can.query_param_all((int)damiao_can::damiao_motor::RID::MST_ID);
 
                         for (int k = 0; k < 2; ++k) {
                             std::this_thread::sleep_for(std::chrono::milliseconds(15));
-                            openarm.recv_all();
+                            damiao_can.recv_all();
                         }
 
-                        double val = openarm.get_arm().get_motor(0).get_param(
-                            (int)openarm::damiao_motor::RID::MST_ID);
+                        double val = damiao_can.get_motor(0).get_param(
+                            (int)damiao_can::damiao_motor::RID::MST_ID);
                         if (std::isfinite(val) && val != -1.0) {
                             detected = true;
                             break;
@@ -205,4 +205,4 @@ int run_discover(const std::string& interface, int max_id, bool full_scan) {
     return 0;
 }
 
-}  // namespace openarm::cli
+}  // namespace damiao_can::cli

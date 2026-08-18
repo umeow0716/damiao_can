@@ -1,6 +1,6 @@
-# OpenArm CAN Python bindings
+# Damiao CAN Python bindings
 
-This is the Python bindings of OpenArm CAN library.
+Python bindings for the DaMiao CAN motor-control library.
 
 > [!WARNING]
 >

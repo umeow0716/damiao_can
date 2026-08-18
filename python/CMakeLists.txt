@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.22)
 project(
-  openarm_can_python
+  damiao_can_python
   VERSION 1.2.9
   LANGUAGES CXX)
 
@@ -27,13 +27,14 @@ find_package(
   REQUIRED)
 
 include(FetchContent)
-set(OCP_FETCH_CONTENT_COMMON_OPTIONS)
+set(DCP_FETCH_CONTENT_COMMON_OPTIONS)
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28)
-  list(APPEND OCP_FETCH_CONTENT_COMMON_OPTIONS EXCLUDE_FROM_ALL TRUE)
+  list(APPEND DCP_FETCH_CONTENT_COMMON_OPTIONS EXCLUDE_FROM_ALL TRUE)
 endif()
-macro(ocp_prepare_fetchcontent)
+macro(dcp_prepare_fetchcontent)
   set(BUILD_SHARED_LIBS OFF)
   set(BUILD_TESTING OFF)
+  set(DAMIAO_CAN_BUILD_CLI OFF CACHE BOOL "Build DamiaoCAN CLI tools" FORCE)
   set(CMAKE_COMPILE_WARNING_AS_ERROR FALSE)
   set(CMAKE_EXPORT_NO_PACKAGE_REGISTRY TRUE)
   set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
@@ -43,7 +44,7 @@ execute_process(
   COMMAND Python::Interpreter -m nanobind --cmake_dir
   OUTPUT_STRIP_TRAILING_WHITESPACE
   OUTPUT_VARIABLE nanobind_ROOT)
-function(ocp_ensure_nanobind)
+function(dcp_ensure_nanobind)
   # We can use FIND_PACKAGE_ARGS in fetchcontent_declare() instead of
   # explicit find_package() when we require CMake 3.24 or later.
   find_package(nanobind)
@@ -64,13 +65,13 @@ function(ocp_ensure_nanobind)
   endif()
   fetchcontent_declare(
     nanobind
-    ${OCP_FETCH_CONTENT_COMMON_OPTIONS}
+    ${DCP_FETCH_CONTENT_COMMON_OPTIONS}
     ${NANOBIND_SOURCE_ARGS}
     # We can use FIND_PACKAGE_ARGS when we require CMake 3.24 or later.
     #
     # FIND_PACKAGE_ARGS
   )
-  ocp_prepare_fetchcontent()
+  dcp_prepare_fetchcontent()
   fetchcontent_makeavailable(nanobind)
   if(nanobind_SOURCE_DIR)
     if(CMAKE_VERSION VERSION_LESS 3.28)
@@ -79,75 +80,42 @@ function(ocp_ensure_nanobind)
     endif()
   endif()
 endfunction()
-ocp_ensure_nanobind()
+dcp_ensure_nanobind()
 
-function(ocp_ensure_openarm_can)
-  # Prefer the local repository source tree when building the Python package
-  # from a full Git checkout with #subdirectory=python. This keeps the Python
-  # bindings and the C++ core in sync when installing from a fork or branch.
-  set(OPENARM_CAN_LOCAL_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/..")
-  if(EXISTS "${OPENARM_CAN_LOCAL_SOURCE_DIR}/include/openarm/can/socket/openarm.hpp"
-     AND EXISTS "${OPENARM_CAN_LOCAL_SOURCE_DIR}/CMakeLists.txt")
+function(dcp_ensure_damiao_can)
+  # Prefer the parent repository when installing from this Git checkout.
+  set(DAMIAO_CAN_LOCAL_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/..")
+  if(EXISTS "${DAMIAO_CAN_LOCAL_SOURCE_DIR}/include/damiao_can/can/socket/damiao_can.hpp"
+     AND EXISTS "${DAMIAO_CAN_LOCAL_SOURCE_DIR}/CMakeLists.txt")
     fetchcontent_declare(
-      openarm_can
-      ${OCP_FETCH_CONTENT_COMMON_OPTIONS}
-      SOURCE_DIR "${OPENARM_CAN_LOCAL_SOURCE_DIR}")
-    ocp_prepare_fetchcontent()
-    fetchcontent_makeavailable(openarm_can)
+      damiao_can
+      ${DCP_FETCH_CONTENT_COMMON_OPTIONS}
+      SOURCE_DIR "${DAMIAO_CAN_LOCAL_SOURCE_DIR}")
+    dcp_prepare_fetchcontent()
+    fetchcontent_makeavailable(damiao_can)
 
-    if(openarm_can_SOURCE_DIR)
-      if(CMAKE_VERSION VERSION_LESS 3.28)
-        set_property(DIRECTORY "${openarm_can_SOURCE_DIR}"
-                     PROPERTY EXCLUDE_FROM_ALL TRUE)
-      endif()
-
-      if(TARGET openarm_can AND NOT TARGET OpenArmCAN::openarm_can)
-        add_library(OpenArmCAN::openarm_can ALIAS openarm_can)
-      endif()
+    if(damiao_can_SOURCE_DIR AND CMAKE_VERSION VERSION_LESS 3.28)
+      set_property(DIRECTORY "${damiao_can_SOURCE_DIR}" PROPERTY EXCLUDE_FROM_ALL TRUE)
     endif()
 
+    if(TARGET damiao_can AND NOT TARGET DamiaoCAN::damiao_can)
+      add_library(DamiaoCAN::damiao_can ALIAS damiao_can)
+    endif()
     return()
   endif()
 
-  # We can use FIND_PACKAGE_ARGS in fetchcontent_declare() instead of
-  # explicit find_package() when we require CMake 3.24 or later.
-  find_package(OpenArmCAN ${openarm_can_python_VERSION})
-  if(OpenArmCAN_FOUND)
-    return()
-  endif()
-
-  fetchcontent_declare(
-    openarm_can
-    ${OCP_FETCH_CONTENT_COMMON_OPTIONS}
-    GIT_REPOSITORY "https://github.com/enactic/openarm_can.git"
-    GIT_TAG "${openarm_can_python_VERSION}"
-    # We can use FIND_PACKAGE_ARGS when we require CMake 3.24 or later.
-    #
-    # FIND_PACKAGE_ARGS NAMES OpenArmCAN
-  )
-  ocp_prepare_fetchcontent()
-  fetchcontent_makeavailable(openarm_can)
-  if(openarm_can_SOURCE_DIR)
-    if(CMAKE_VERSION VERSION_LESS 3.28)
-      set_property(DIRECTORY "${openarm_can_SOURCE_DIR}"
-                   PROPERTY EXCLUDE_FROM_ALL TRUE)
-    endif()
-
-    if(TARGET openarm_can AND NOT TARGET OpenArmCAN::openarm_can)
-      add_library(OpenArmCAN::openarm_can ALIAS openarm_can)
-    endif()
-  endif()
+  find_package(DamiaoCAN ${damiao_can_python_VERSION} REQUIRED)
 endfunction()
-ocp_ensure_openarm_can()
+dcp_ensure_damiao_can()
 
-nanobind_add_module(openarm_can_python src/openarm_can.cpp)
-set_target_properties(openarm_can_python PROPERTIES OUTPUT_NAME "openarm_can")
-target_link_libraries(openarm_can_python PRIVATE OpenArmCAN::openarm_can)
-install(TARGETS openarm_can_python LIBRARY DESTINATION "openarm_can")
+nanobind_add_module(damiao_can_python src/damiao_can.cpp)
+set_target_properties(damiao_can_python PROPERTIES OUTPUT_NAME "damiao_can")
+target_link_libraries(damiao_can_python PRIVATE DamiaoCAN::damiao_can)
+install(TARGETS damiao_can_python LIBRARY DESTINATION "damiao_can")
 install(
   FILES
-    openarm_can/__init__.py
-    openarm_can/__init__.pyi
-    openarm_can/openarm_can.pyi
-    openarm_can/py.typed
-  DESTINATION "openarm_can")
+    damiao_can/__init__.py
+    damiao_can/__init__.pyi
+    damiao_can/damiao_can.pyi
+    damiao_can/py.typed
+  DESTINATION "damiao_can")

@@ -16,25 +16,25 @@
 
 #include <chrono>
 #include <iostream>
-#include <openarm/canbus/can_socket.hpp>
+#include <damiao_can/canbus/can_socket.hpp>
 #include <thread>
 #include <vector>
 
 #include "cli.hpp"
 
-namespace openarm::cli {
+namespace damiao_can::cli {
 
 /**
  * @brief Calibrates the mechanical zero position for specified motors.
  * This follows the DaMiao protocol sequence: Disable -> Set Zero -> Disable.
  */
-int run_set_zero(const std::string& interface, bool use_arm_ids,
+int run_set_zero(const std::string& interface, bool use_default_ids,
                  const std::vector<std::string>& custom_ids_str) {
     std::vector<uint32_t> target_ids;
 
     // Parse target IDs
-    if (use_arm_ids) {
-        // Default arm motor IDs (1 through 8)
+    if (use_default_ids) {
+        // Default motor IDs (1 through 8)
         for (uint32_t i = 1; i <= 8; ++i) target_ids.push_back(i);
     }
 
@@ -54,7 +54,7 @@ int run_set_zero(const std::string& interface, bool use_arm_ids,
 
     try {
         // Use Classic CAN (CAN 2.0) for configuration sequences to ensure compatibility
-        openarm::canbus::CANSocket socket(interface, false);
+        damiao_can::canbus::CANSocket socket(interface, false);
         std::cout << "Initializing Zero Position Calibration sequence on " << interface << "...\n";
 
         for (uint32_t id : target_ids) {
@@ -101,4 +101,4 @@ int run_set_zero(const std::string& interface, bool use_arm_ids,
     return 0;
 }
 
-}  // namespace openarm::cli
+}  // namespace damiao_can::cli

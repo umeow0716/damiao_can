@@ -12,45 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import openarm_can as oa
+import damiao_can as oa
 import time
-# Create OpenArm instance
+# Create DamiaoCAN instance
 
-arm = oa.OpenArm("can0", True)
+device = oa.DamiaoCAN("can0", True)
 
-# Initialize arm motors
+# Initialize device motors
 motor_types = [oa.MotorType.DM4310, oa.MotorType.DM4310]
 send_ids = [0x01, 0x02]
 recv_ids = [0x11, 0x12]
-arm.init_arm_motors(motor_types, send_ids, recv_ids)
+device.init_motors(motor_types, send_ids, recv_ids)
 
-# Initialize gripper
-arm.init_gripper_motor(oa.MotorType.DM4310, 0x7, 0x17)
-arm.set_callback_mode_all(oa.CallbackMode.IGNORE)
+device.set_callback_mode_all(oa.CallbackMode.IGNORE)
 # Use high-level operations
-arm.enable_all()
-arm.recv_all()
+device.enable_all()
+device.recv_all()
 
 
 # return to zero position
-arm.set_callback_mode_all(oa.CallbackMode.STATE)
-arm.get_arm().mit_control_all([oa.MITParam(2, 0.5, 0, 0, 0),
+device.set_callback_mode_all(oa.CallbackMode.STATE)
+device.mit_control_all([oa.MITParam(2, 0.5, 0, 0, 0),
                                oa.MITParam(2, 0.5, 0, 0, 0)])
 
-arm.recv_all()
+device.recv_all()
 
 # torque control test
 
-arm.get_gripper().mit_control_all([oa.MITParam(0, 0, 0, 0, 0.15)])
-arm.get_arm().mit_control_all(
+device.mit_control_all(
     [oa.MITParam(0, 0, 0, 0, 0.15), oa.MITParam(0, 0, 0, 0, 0.15)])
-arm.recv_all()
+device.recv_all()
 
 # read motor position
 while True:
-    arm.refresh_all()
-    arm.recv_all()
-    for motor in arm.get_arm().get_motors():
-        print(motor.get_position())
-    for motor in arm.get_gripper().get_motors():
+    device.refresh_all()
+    device.recv_all()
+    for motor in device.get_motors():
         print(motor.get_position())
