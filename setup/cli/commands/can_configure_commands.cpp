@@ -12,24 +12,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include <damiao_can/canbus/can_helper.hpp>
 
 #include "cli.hpp"
 
 namespace damiao_can::cli {
 
+namespace {
+double parse_ratio(const std::string& value, const char* name) {
+    try {
+        const double parsed = std::stod(value);
+        if (parsed < 0.0 || parsed >= 1.0) {
+            throw std::out_of_range("ratio");
+        }
+        return parsed;
+    } catch (...) {
+        throw canbus::CANHelperException(std::string(name) + " must be 0 (automatic) or in the range (0, 1)");
+    }
+}
+
+uint32_t parse_uint(const std::string& value, const char* name) {
+    try {
+        std::size_t consumed = 0;
+        const unsigned long parsed = std::stoul(value, &consumed, 10);
+        if (consumed != value.size() || parsed > UINT32_MAX) {
+            throw std::out_of_range("integer");
+        }
+        return static_cast<uint32_t>(parsed);
+    } catch (...) {
+        throw canbus::CANHelperException(std::string(name) + " must be a non-negative integer");
+    }
+}
+}  // namespace
+
 int run_can_configure(const std::vector<std::string>& interfaces, int bitrate, int dbitrate,
                       bool fd_mode, const std::string& sample_point,
                       const std::string& dsample_point, const std::string& dsjw, int restart_ms) {
     std::vector<std::string> target_interfaces = interfaces;
-    if (target_interfaces.empty()) {
-        target_interfaces = {"can0", "can1", "can2", "can3"};
-    }
+    if (target_interfaces.empty()) target_interfaces = {"can0", "can1", "can2", "can3"};
 
-    // Header: show what we are about to apply
     std::cout << "=========================================================\n";
     std::cout << " CAN CONFIGURE\n";
     std::cout << "---------------------------------------------------------\n";
@@ -45,43 +70,51 @@ int run_can_configure(const std::vector<std::string>& interfaces, int bitrate, i
     std::cout << " Restart   : " << restart_ms << " ms\n";
     std::cout << "=========================================================\n\n";
 
-    int failed = 0;
+    if (bitrate <= 0) throw canbus::CANHelperException("bitrate must be greater than zero");
+    if (fd_mode && dbitrate <= 0) {
+        throw canbus::CANHelperException("dbitrate must be greater than zero in CAN-FD mode");
+    }
+    if (restart_ms < 0) throw canbus::CANHelperException("restart-ms must not be negative");
 
-    for (const auto& iface : target_interfaces) {
-        std::cout << ">>> [" << iface << "] Applying..." << std::endl;
-
-        std::string cmd_down = "sudo ip link set " + iface + " down 2>/dev/null";
-        std::system(cmd_down.c_str());
-
-        std::string cmd_set = "sudo ip link set " + iface + " type can bitrate " +
-                              std::to_string(bitrate) + " sample-point " + sample_point +
-                              " restart-ms " + std::to_string(restart_ms);
-        if (fd_mode) {
-            cmd_set += " dbitrate " + std::to_string(dbitrate) + " fd on dsample-point " +
-                       dsample_point + " dsjw " + dsjw;
-        }
-
-        std::cout << "    " << cmd_set << std::endl;
-        int ret = std::system(cmd_set.c_str());
-        if (ret != 0) {
-            std::cerr << "✗ [" << iface << "] Failed to apply CAN parameters." << std::endl;
-            ++failed;
-            continue;
-        }
-
-        std::string cmd_up = "sudo ip link set " + iface + " up";
-        ret = std::system(cmd_up.c_str());
-        if (ret != 0) {
-            std::cerr << "✗ [" << iface << "] Failed to bring up interface." << std::endl;
-            ++failed;
-            continue;
-        }
-
-        std::cout << "✓ [" << iface << "] UP and active." << std::endl;
+    canbus::CANInterfaceConfig config;
+    config.bitrate = static_cast<uint32_t>(bitrate);
+    config.dbitrate = static_cast<uint32_t>(dbitrate);
+    config.fd_enabled = fd_mode;
+    config.sample_point = parse_ratio(sample_point, "sample-point");
+    config.restart_ms = static_cast<uint32_t>(restart_ms);
+    if (fd_mode) {
+        config.dsample_point = parse_ratio(dsample_point, "dsample-point");
+        config.dsjw = parse_uint(dsjw, "dsjw");
     }
 
-    // Summary
-    int total = static_cast<int>(target_interfaces.size());
+    int failed = 0;
+    for (const auto& iface : target_interfaces) {
+        std::cout << ">>> [" << iface << "] Applying..." << std::endl;
+        try {
+            canbus::CANHelper helper(iface);
+            const auto before = helper.status();
+            if (!before.exists) {
+                std::cerr << "✗ [" << iface << "] Interface does not exist." << std::endl;
+                ++failed;
+                continue;
+            }
+            if (!before.is_can) {
+                std::cerr << "✗ [" << iface << "] Interface is not a CAN device." << std::endl;
+                ++failed;
+                continue;
+            }
+
+            helper.configure(config);
+            const auto after = helper.status();
+            std::cout << "✓ [" << iface << "] " << (after.up ? "UP" : "configured")
+                      << ", MTU " << after.mtu << "." << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "✗ [" << iface << "] " << e.what() << std::endl;
+            ++failed;
+        }
+    }
+
+    const int total = static_cast<int>(target_interfaces.size());
     std::cout << "\n---------------------------------------------------------\n";
     if (failed == 0) {
         std::cout << "✓ All " << total << " interface(s) configured successfully.\n";
@@ -91,7 +124,6 @@ int run_can_configure(const std::vector<std::string>& interfaces, int bitrate, i
                   << " interface(s) configured successfully.\n";
     }
     std::cout << "---------------------------------------------------------\n";
-
     return failed > 0 ? 1 : 0;
 }
 

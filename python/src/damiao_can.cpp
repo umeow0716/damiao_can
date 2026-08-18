@@ -26,6 +26,7 @@
 #include <damiao_can/can/socket/motor_component.hpp>
 #include <damiao_can/canbus/can_device.hpp>
 #include <damiao_can/canbus/can_device_collection.hpp>
+#include <damiao_can/canbus/can_helper.hpp>
 #include <damiao_can/canbus/can_socket.hpp>
 #include <damiao_can/damiao_motor/dm_motor.hpp>
 #include <damiao_can/damiao_motor/dm_motor_constants.hpp>
@@ -315,6 +316,43 @@ NB_MODULE(damiao_can, m) {
              nb::arg("frame"))
         .def("get_devices", &CANDeviceCollection::get_devices);
 
+    // CAN interface status/configuration helper. Status probing never elevates privileges.
+    nb::exception<CANHelperException>(m, "CANHelperException");
+
+    nb::class_<CANInterfaceStatus>(m, "CANInterfaceStatus")
+        .def(nb::init<>())
+        .def_rw("exists", &CANInterfaceStatus::exists)
+        .def_rw("is_can", &CANInterfaceStatus::is_can)
+        .def_rw("up", &CANInterfaceStatus::up)
+        .def_rw("running", &CANInterfaceStatus::running)
+        .def_rw("ifindex", &CANInterfaceStatus::ifindex)
+        .def_rw("mtu", &CANInterfaceStatus::mtu)
+        .def_rw("bitrate", &CANInterfaceStatus::bitrate)
+        .def_rw("dbitrate", &CANInterfaceStatus::dbitrate)
+        .def_rw("fd_enabled", &CANInterfaceStatus::fd_enabled)
+        .def_rw("restart_ms", &CANInterfaceStatus::restart_ms);
+
+    nb::class_<CANInterfaceConfig>(m, "CANInterfaceConfig")
+        .def(nb::init<>())
+        .def_rw("bitrate", &CANInterfaceConfig::bitrate)
+        .def_rw("dbitrate", &CANInterfaceConfig::dbitrate)
+        .def_rw("fd_enabled", &CANInterfaceConfig::fd_enabled)
+        .def_rw("sample_point", &CANInterfaceConfig::sample_point)
+        .def_rw("dsample_point", &CANInterfaceConfig::dsample_point)
+        .def_rw("dsjw", &CANInterfaceConfig::dsjw)
+        .def_rw("restart_ms", &CANInterfaceConfig::restart_ms)
+        .def_rw("bring_up", &CANInterfaceConfig::bring_up);
+
+    nb::class_<CANHelper>(m, "CANHelper")
+        .def(nb::init<std::string>(), nb::arg("interface"))
+        .def_prop_ro("interface", &CANHelper::interface)
+        .def("exists", &CANHelper::exists)
+        .def("status", &CANHelper::status)
+        .def("can_configure_without_sudo", &CANHelper::can_configure_without_sudo)
+        .def("set_up", &CANHelper::set_up)
+        .def("set_down", &CANHelper::set_down)
+        .def("configure", &CANHelper::configure, nb::arg("config"));
+
     // CAN Socket class
     nb::class_<CANSocket>(m, "CANSocket")
         .def(nb::init<const std::string&, bool>(), nb::arg("interface"),
@@ -438,6 +476,9 @@ NB_MODULE(damiao_can, m) {
         .def("get_motor", &DamiaoCAN::get_motor, nb::arg("index"))
         .def("get_master_can_device_collection", &DamiaoCAN::get_master_can_device_collection,
              nb::rv_policy::reference)
+        .def_prop_ro("can_helper",
+                     static_cast<CANHelper& (DamiaoCAN::*)()>(&DamiaoCAN::get_can_helper),
+                     nb::rv_policy::reference_internal)
         .def("enable_all", &DamiaoCAN::enable_all)
         .def("disable_all", &DamiaoCAN::disable_all)
         .def("set_zero", &DamiaoCAN::set_zero, nb::arg("index"))

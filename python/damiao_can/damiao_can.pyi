@@ -65,6 +65,40 @@ class CANPacket:
     @data.setter
     def data(self, arg: collections.abc.Sequence[int]) -> None:
         ...
+class CANHelperException(Exception):
+    pass
+class CANInterfaceStatus:
+    exists: bool
+    is_can: bool
+    up: bool
+    running: bool
+    ifindex: int
+    mtu: int
+    bitrate: int | None
+    dbitrate: int | None
+    fd_enabled: bool
+    restart_ms: int | None
+    def __init__(self) -> None: ...
+class CANInterfaceConfig:
+    bitrate: int
+    dbitrate: int
+    fd_enabled: bool
+    sample_point: float
+    dsample_point: float
+    dsjw: int
+    restart_ms: int
+    bring_up: bool
+    def __init__(self) -> None: ...
+class CANHelper:
+    def __init__(self, interface: str) -> None: ...
+    @property
+    def interface(self) -> str: ...
+    def exists(self) -> bool: ...
+    def status(self) -> CANInterfaceStatus: ...
+    def can_configure_without_sudo(self) -> bool: ...
+    def set_up(self) -> None: ...
+    def set_down(self) -> None: ...
+    def configure(self, config: CANInterfaceConfig) -> None: ...
 class CANSocket:
     @staticmethod
     def __new__(type, *args, **kwargs):
@@ -397,6 +431,9 @@ class DamiaoCAN:
     def __new__(type, *args, **kwargs):
         """Create and return a new object."""
     def __init__(self, can_interface: str, enable_fd: bool = False) -> None:
+        ...
+    @property
+    def can_helper(self) -> CANHelper:
         ...
     def disable_all(self) -> None:
         ...

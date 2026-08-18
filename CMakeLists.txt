@@ -35,6 +35,7 @@ add_library(
   src/damiao_can/can/socket/damiao_can_group.cpp
   src/damiao_can/can/socket/damiao_can.cpp
   src/damiao_can/canbus/can_device_collection.cpp
+  src/damiao_can/canbus/can_helper.cpp
   src/damiao_can/canbus/can_socket.cpp
   src/damiao_can/damiao_motor/dm_motor.cpp
   src/damiao_can/damiao_motor/dm_motor_control.cpp
@@ -60,6 +61,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.23)
            include/damiao_can/can/socket/damiao_can.hpp
            include/damiao_can/canbus/can_device.hpp
            include/damiao_can/canbus/can_device_collection.hpp
+           include/damiao_can/canbus/can_helper.hpp
            include/damiao_can/canbus/can_socket.hpp
            include/damiao_can/damiao_motor/dm_motor.hpp
            include/damiao_can/damiao_motor/dm_motor_constants.hpp
