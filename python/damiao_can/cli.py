@@ -192,7 +192,7 @@ def _cmd_set_zero(args: argparse.Namespace) -> int:
 
     device.flush_rx()
     device.set_zero_all()
-    result = device.recv_all()
+    result = device.recv_all(1_000_000)
     print(result)
     return 0 if result.ok else 2
 
