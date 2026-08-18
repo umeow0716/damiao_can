@@ -16,8 +16,9 @@
 Example: refresh multiple CAN buses in parallel with DamiaoCANGroup.
 
 This example creates one DamiaoCAN instance per CAN interface through DamiaoCANGroup,
-initializes motors on each bus, then calls group.refresh_all_and_recv() to refresh
-all buses in parallel.
+initializes motors on each bus, then uses flush_rx() + refresh_all() and calls
+group.recv_all() to receive all buses in parallel. Each CAN interface keeps its
+own receive worker thread.
 
 Edit BUS_CONFIGS for your own CAN interfaces and motor IDs before running.
 """
@@ -53,6 +54,14 @@ def main() -> None:
     # True means CAN-FD enabled.
     group = dc.DamiaoCANGroup(can_interfaces, True)
 
+    # Configure every CAN interface before motor setup. Configuration is
+    # sequential; the group keeps one RX worker thread per CAN interface.
+    for can_interface in can_interfaces:
+        helper = group.get_device(can_interface).can_helper
+        helper.set_down()
+        helper.set_bitrate(1_000_000, 5_000_000, True)
+        helper.set_up()
+
     for can_interface, config in BUS_CONFIGS.items():
         device = group.get_device(can_interface)
 
@@ -74,20 +83,21 @@ def main() -> None:
         group.enable_all()
 
         for step in range(30):
-            results = group.refresh_all_and_recv(timeout_us=500)
+            # These two group helpers intentionally run sequentially across CAN
+            # interfaces. Only recv_all() uses the per-interface RX worker threads.
+            group.flush_rx()
+            group.refresh_all()
+            results = group.recv_all(timeout_us=500)
 
             print(f"\nstep {step}")
+            print(results)
 
-            for result in results:
-                status = "OK" if result.ok else "MISS"
-                print(
-                    f"{result.interface}: "
-                    f"{result.received}/{result.expected} "
-                    f"{status}"
-                )
-
-                if result.error:
-                    print(f"  error: {result.error}")
+            # get() accepts an index or CAN interface name. If both are
+            # supplied, can_id takes priority.
+            first_result = results.get(index=0)
+            same_result = results.get(
+                index=999, can_id=first_result.can_interface)
+            assert same_result.can_interface == first_result.can_interface
 
             for can_interface in can_interfaces:
                 device = group.get_device(can_interface)

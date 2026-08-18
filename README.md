@@ -14,7 +14,7 @@ The repository provides a SocketCAN C++ core and Python bindings focused on dire
 - Python package installation from the `python/` subdirectory through Git URLs.
 - Python type stubs (`.pyi`) and `py.typed` for IDE completion and static analysis.
 - Simplified high-level `DamiaoCAN` API with direct motor access.
-- `flush_rx()` and `refresh_all_and_recv()` helpers for more reliable state refresh from Python.
+- A single `recv_all()` receive API, plus `flush_rx()` and `refresh_all()` for explicit receive-flow composition.
 - Pure velocity control support through `ControlMode.VEL`, `VelParam`, and `vel_control_one/all`.
 - Additional Python examples for low-level motor-control usage.
 
@@ -131,18 +131,15 @@ print(status.bitrate, status.dbitrate, status.fd_enabled)
 
 Configuration is explicit. If the process already has `CAP_NET_ADMIN`, it is used directly. Otherwise the helper starts `sudo` as a child process and lets `sudo` request authorization from the controlling terminal. Passwords are never passed through the Python/C++ API.
 
-```python
-config = dc.CANInterfaceConfig()
-config.bitrate = 1_000_000
-config.dbitrate = 5_000_000
-config.fd_enabled = True
-config.sample_point = 0.75
-config.dsample_point = 0.75
-config.dsjw = 2
-config.restart_ms = 100
+For the common CAN-FD setup, keep the link transition explicit:
 
-helper.configure(config)
+```python
+helper.set_down()
+helper.set_bitrate(1_000_000, 5_000_000, True)
+helper.set_up()
 ```
+
+`CANInterfaceConfig` and `helper.configure(config)` remain available for advanced timing options.
 
 A successfully constructed `DamiaoCAN` also exposes the helper as `device.can_helper`. Use a standalone `CANHelper` when the interface may not exist yet, because `DamiaoCAN` still opens its SocketCAN socket during construction.
 
@@ -153,7 +150,10 @@ A successfully constructed `DamiaoCAN` also exposes the helper as `device.can_he
 ```python
 import damiao_can as dc
 
-device = dc.DamiaoCAN("can0", True)  # True = CAN-FD enabled
+device = dc.DamiaoCAN("can0", True)
+device.can_helper.set_down()
+device.can_helper.set_bitrate(1_000_000, 5_000_000, True)
+device.can_helper.set_up()
 
 device.init_motors(
     [dc.MotorType.DM4310],
@@ -164,13 +164,30 @@ device.init_motors(
 
 device.enable_all()
 
-received = device.refresh_all_and_recv()
-print("received frames:", received)
+device.flush_rx()
+device.refresh_all()
+result = device.recv_all()
+print(result)
+# {can_interface: "can0", expected: 1, received: 1, missing: [], ok: True}
+# Properties: can_interface, expect, received, missing, ok.
 
-for motor in device.get_motors():
-    print("position:", motor.get_position())
-    print("velocity:", motor.get_velocity())
-    print("torque:", motor.get_torque())
+# The `missing` property contains motor send IDs. The result formatter displays
+# those IDs as hexadecimal values such as 0x01.
+
+# Multiple CAN interfaces use the same explicit receive flow. flush_rx() and
+# refresh_all() iterate over each CAN device; recv_all() uses one receive
+# worker thread per CAN interface.
+group = dc.DamiaoCANGroup(["can0", "can1"], True)
+group.flush_rx()
+group.refresh_all()
+results = group.recv_all()
+print(results)
+
+# Lookup by index:
+print(results.get(index=0))
+
+# Lookup by CAN interface. can_id takes priority when both arguments are set:
+print(results.get(index=999, can_id="can1"))
 
 device.disable_all()
 ```

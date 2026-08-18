@@ -12,128 +12,194 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <errno.h>
-#include <fcntl.h>
 #include <net/if.h>
-#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <cerrno>
+#include <chrono>
+#include <cstring>
 #include <damiao_can/canbus/can_socket.hpp>
-#include <iostream>
+#include <stdexcept>
+#include <string>
 
 namespace damiao_can::canbus {
+namespace {
+
+std::string errno_message(const std::string& action) {
+    return action + ": " + std::strerror(errno);
+}
+
+}  // namespace
 
 CANSocket::CANSocket(const std::string& interface, bool enable_fd)
     : socket_fd_(-1), interface_(interface), fd_enabled_(enable_fd) {
-    if (!initialize_socket(interface)) {
-        throw CANSocketException("Failed to initialize socket for interface: " + interface);
-    }
+    initialize_socket(interface);
 }
 
 CANSocket::~CANSocket() { cleanup(); }
 
-bool CANSocket::initialize_socket(const std::string& interface) {
-    // Create socket
-    socket_fd_ = socket(PF_CAN, SOCK_RAW, CAN_RAW);
-    if (socket_fd_ < 0) {
-        return false;
+void CANSocket::initialize_socket(const std::string& interface) {
+    if (interface.empty()) {
+        throw std::invalid_argument("CAN interface name must not be empty");
+    }
+    if (interface.size() >= IFNAMSIZ) {
+        throw std::invalid_argument("CAN interface name is too long: " + interface);
     }
 
-    struct ifreq ifr;
-    struct sockaddr_can addr;
+    socket_fd_ = ::socket(PF_CAN, SOCK_RAW, CAN_RAW);
+    if (socket_fd_ < 0) {
+        throw CANSocketException(errno_message("failed to create SocketCAN socket"));
+    }
 
-    strncpy(ifr.ifr_name, interface.c_str(), IFNAMSIZ - 1);
+    struct ifreq ifr{};
+    std::strncpy(ifr.ifr_name, interface.c_str(), IFNAMSIZ - 1);
     ifr.ifr_name[IFNAMSIZ - 1] = '\0';
 
-    if (ioctl(socket_fd_, SIOCGIFINDEX, &ifr) < 0) {
+    if (::ioctl(socket_fd_, SIOCGIFINDEX, &ifr) < 0) {
+        const std::string message = errno_message("failed to resolve CAN interface " + interface);
         cleanup();
-        return false;
+        throw CANSocketException(message);
     }
 
-    memset(&addr, 0, sizeof(addr));
+    struct sockaddr_can addr{};
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
 
     if (fd_enabled_) {
         int enable_canfd = 1;
-        if (setsockopt(socket_fd_, SOL_CAN_RAW, CAN_RAW_FD_FRAMES, &enable_canfd,
-                       sizeof(enable_canfd)) < 0) {
+        if (::setsockopt(socket_fd_, SOL_CAN_RAW, CAN_RAW_FD_FRAMES, &enable_canfd,
+                         sizeof(enable_canfd)) < 0) {
+            const std::string message = errno_message("failed to enable CAN-FD frames");
             cleanup();
-            return false;
+            throw CANSocketException(message);
         }
     }
 
-    if (bind(socket_fd_, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
+    if (::bind(socket_fd_, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
+        const std::string message =
+            errno_message("failed to bind SocketCAN interface " + interface);
         cleanup();
-        return false;
+        throw CANSocketException(message);
     }
 
-    struct timeval timeout;
+    struct timeval timeout{};
     timeout.tv_sec = 0;
     timeout.tv_usec = 100;
-    if (setsockopt(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+    if (::setsockopt(socket_fd_, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        const std::string message = errno_message("failed to set SocketCAN receive timeout");
         cleanup();
-        return false;
+        throw CANSocketException(message);
     }
-
-    return true;
 }
 
 void CANSocket::cleanup() {
     if (socket_fd_ >= 0) {
-        close(socket_fd_);
+        ::close(socket_fd_);
         socket_fd_ = -1;
     }
 }
 
 ssize_t CANSocket::read_raw_frame(void* buffer, size_t buffer_size) {
-    if (!is_initialized()) return -1;
-    return read(socket_fd_, buffer, buffer_size);
+    if (!is_initialized()) {
+        throw CANSocketException("socket is not initialized");
+    }
+
+    ssize_t result = -1;
+    do {
+        result = ::read(socket_fd_, buffer, buffer_size);
+    } while (result < 0 && errno == EINTR);
+
+    if (result < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+        throw CANSocketException(errno_message("failed to read SocketCAN frame"));
+    }
+    return result;
 }
 
 ssize_t CANSocket::write_raw_frame(const void* buffer, size_t frame_size) {
-    if (!is_initialized()) return -1;
-    return write(socket_fd_, buffer, frame_size);
+    if (!is_initialized()) {
+        throw CANSocketException("socket is not initialized");
+    }
+
+    ssize_t result = -1;
+    do {
+        result = ::write(socket_fd_, buffer, frame_size);
+    } while (result < 0 && errno == EINTR);
+
+    if (result < 0) {
+        throw CANSocketException(errno_message("failed to write SocketCAN frame"));
+    }
+    if (static_cast<size_t>(result) != frame_size) {
+        throw CANSocketException("short SocketCAN write: expected " + std::to_string(frame_size) +
+                                 " bytes, wrote " + std::to_string(result));
+    }
+    return result;
 }
 
 bool CANSocket::write_can_frame(const can_frame& frame) {
-    return write(socket_fd_, &frame, sizeof(frame)) == sizeof(frame);
+    return write_raw_frame(&frame, sizeof(frame)) == static_cast<ssize_t>(sizeof(frame));
 }
 
 bool CANSocket::write_canfd_frame(const canfd_frame& frame) {
-    return write(socket_fd_, &frame, sizeof(frame)) == sizeof(frame);
+    return write_raw_frame(&frame, sizeof(frame)) == static_cast<ssize_t>(sizeof(frame));
 }
 
 bool CANSocket::read_can_frame(can_frame& frame) {
-    if (!is_initialized()) return false;
-    ssize_t bytes_read = read(socket_fd_, &frame, sizeof(frame));
-    return bytes_read == sizeof(frame);
+    const ssize_t bytes_read = read_raw_frame(&frame, sizeof(frame));
+    if (bytes_read < 0) return false;
+    if (bytes_read != static_cast<ssize_t>(sizeof(frame))) {
+        throw CANSocketException(
+            "unexpected classic CAN frame size: " + std::to_string(bytes_read) + " bytes");
+    }
+    return true;
 }
 
 bool CANSocket::read_canfd_frame(canfd_frame& frame) {
-    if (!is_initialized()) return false;
-    ssize_t bytes_read = read(socket_fd_, &frame, sizeof(frame));
-    return bytes_read == sizeof(frame);
+    const ssize_t bytes_read = read_raw_frame(&frame, sizeof(frame));
+    if (bytes_read < 0) return false;
+    if (bytes_read != static_cast<ssize_t>(sizeof(frame))) {
+        throw CANSocketException("unexpected CAN-FD frame size: " + std::to_string(bytes_read) +
+                                 " bytes");
+    }
+    return true;
 }
 
 bool CANSocket::is_data_available(int timeout_us) {
-    if (!is_initialized()) return false;
+    if (!is_initialized()) {
+        throw CANSocketException("socket is not initialized");
+    }
+    if (timeout_us < 0) {
+        throw std::invalid_argument("timeout_us must be non-negative");
+    }
 
-    fd_set read_fds;
-    struct timeval timeout;
+    using clock = std::chrono::steady_clock;
+    using microseconds = std::chrono::microseconds;
+    const auto deadline = clock::now() + microseconds(timeout_us);
 
-    FD_ZERO(&read_fds);
-    FD_SET(socket_fd_, &read_fds);
+    while (true) {
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(socket_fd_, &read_fds);
 
-    timeout.tv_sec = timeout_us / 1000000;
-    timeout.tv_usec = (timeout_us % 1000000);
+        const auto now = clock::now();
+        const auto remaining = now >= deadline
+                                   ? microseconds(0)
+                                   : std::chrono::duration_cast<microseconds>(deadline - now);
+        struct timeval timeout{};
+        timeout.tv_sec = static_cast<time_t>(remaining.count() / 1000000);
+        timeout.tv_usec = static_cast<suseconds_t>(remaining.count() % 1000000);
 
-    int result = select(socket_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
-
-    return (result > 0 && FD_ISSET(socket_fd_, &read_fds));
+        const int result = ::select(socket_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
+        if (result > 0) return FD_ISSET(socket_fd_, &read_fds);
+        if (result == 0) return false;
+        if (errno == EINTR) {
+            if (clock::now() >= deadline) return false;
+            continue;
+        }
+        throw CANSocketException(errno_message("failed while waiting for SocketCAN data"));
+    }
 }
 
 }  // namespace damiao_can::canbus

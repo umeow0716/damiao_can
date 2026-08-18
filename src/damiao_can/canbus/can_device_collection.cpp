@@ -15,6 +15,8 @@
 #include <damiao_can/canbus/can_device_collection.hpp>
 #include <damiao_can/canbus/can_socket.hpp>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
 namespace damiao_can::canbus {
 
@@ -23,15 +25,22 @@ CANDeviceCollection::CANDeviceCollection(CANSocket& can_socket) : can_socket_(ca
 CANDeviceCollection::~CANDeviceCollection() {}
 
 void CANDeviceCollection::add_device(const std::shared_ptr<CANDevice>& device) {
-    if (!device) return;
+    if (!device) {
+        throw std::invalid_argument("CAN device must not be null");
+    }
 
-    // Add device to our collection
-    canid_t device_id = device->get_recv_can_id();
-    devices_[device_id] = device;
+    const canid_t device_id = device->get_recv_can_id();
+    if (devices_.find(device_id) != devices_.end()) {
+        throw std::invalid_argument("duplicate receive CAN ID: " +
+                                    std::to_string(static_cast<uint32_t>(device_id)));
+    }
+    devices_.emplace(device_id, device);
 }
 
 void CANDeviceCollection::remove_device(const std::shared_ptr<CANDevice>& device) {
-    if (!device) return;
+    if (!device) {
+        throw std::invalid_argument("CAN device must not be null");
+    }
 
     canid_t device_id = device->get_recv_can_id();
     auto it = devices_.find(device_id);

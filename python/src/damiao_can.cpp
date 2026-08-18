@@ -265,7 +265,7 @@ NB_MODULE(damiao_can, m) {
     // ============================================================================
 
     // CAN Socket Exception
-    nb::exception<CANSocketException>(m, "CANSocketException");
+    nb::exception<CANSocketException>(m, "CANSocketException", PyExc_RuntimeError);
 
     // CANDevice base class (MUST be defined before derived classes)
     nb::class_<CANDevice>(m, "CANDevice")
@@ -317,7 +317,7 @@ NB_MODULE(damiao_can, m) {
         .def("get_devices", &CANDeviceCollection::get_devices);
 
     // CAN interface status/configuration helper. Status probing never elevates privileges.
-    nb::exception<CANHelperException>(m, "CANHelperException");
+    nb::exception<CANHelperException>(m, "CANHelperException", PyExc_RuntimeError);
 
     nb::class_<CANInterfaceStatus>(m, "CANInterfaceStatus")
         .def(nb::init<>())
@@ -351,6 +351,8 @@ NB_MODULE(damiao_can, m) {
         .def("can_configure_without_sudo", &CANHelper::can_configure_without_sudo)
         .def("set_up", &CANHelper::set_up)
         .def("set_down", &CANHelper::set_down)
+        .def("set_bitrate", &CANHelper::set_bitrate, nb::arg("bitrate"), nb::arg("dbitrate"),
+             nb::arg("fd"))
         .def("configure", &CANHelper::configure, nb::arg("config"));
 
     // CAN Socket class
@@ -501,21 +503,29 @@ NB_MODULE(damiao_can, m) {
         .def("posforce_control_one", &DamiaoCAN::posforce_control_one, nb::arg("index"),
              nb::arg("posforce_param"))
         .def("posforce_control_all", &DamiaoCAN::posforce_control_all, nb::arg("posforce_params"))
-        .def("recv_all", &DamiaoCAN::recv_all, nb::arg("first_timeout_us") = 500)
+        .def("recv_all", &DamiaoCAN::recv_all, nb::arg("timeout_us") = 500,
+             nb::call_guard<nb::gil_scoped_release>())
         .def("flush_rx", &DamiaoCAN::flush_rx)
-        .def("refresh_all_and_recv", &DamiaoCAN::refresh_all_and_recv, nb::arg("timeout_us") = 500,
-             nb::call_guard<nb::gil_scoped_release>())
-        .def("recv_wait_all", &DamiaoCAN::recv_wait_all, nb::arg("timeout_us") = 500,
-             nb::call_guard<nb::gil_scoped_release>())
         .def("expected_response_count", &DamiaoCAN::expected_response_count);
 
-    nb::class_<DamiaoCANRefreshResult>(m, "DamiaoCANRefreshResult")
-        .def(nb::init<>())
-        .def_rw("interface", &DamiaoCANRefreshResult::interface)
-        .def_rw("received", &DamiaoCANRefreshResult::received)
-        .def_rw("expected", &DamiaoCANRefreshResult::expected)
-        .def_rw("ok", &DamiaoCANRefreshResult::ok)
-        .def_rw("error", &DamiaoCANRefreshResult::error);
+    nb::class_<DamiaoCANRecvResult>(m, "DamiaoCANRecvResult")
+        .def_ro("can_interface", &DamiaoCANRecvResult::can_interface)
+        .def_ro("expect", &DamiaoCANRecvResult::expect)
+        .def_ro("received", &DamiaoCANRecvResult::received)
+        .def_ro("ok", &DamiaoCANRecvResult::ok)
+        .def_ro("missing", &DamiaoCANRecvResult::missing)
+        .def("__str__", &DamiaoCANRecvResult::to_string)
+        .def("__repr__", &DamiaoCANRecvResult::to_string);
+
+    nb::class_<DamiaoCANGroupRecvResult>(m, "DamiaoCANGroupRecvResult")
+        .def("size", &DamiaoCANGroupRecvResult::size)
+        .def(
+            "get",
+            [](const DamiaoCANGroupRecvResult& self, std::optional<std::size_t> index,
+               std::optional<std::string> can_id) { return self.get(index, can_id); },
+            nb::arg("index") = nb::none(), nb::arg("can_id") = nb::none())
+        .def("__str__", &DamiaoCANGroupRecvResult::to_string)
+        .def("__repr__", &DamiaoCANGroupRecvResult::to_string);
 
     nb::class_<DamiaoCANGroup>(m, "DamiaoCANGroup")
         .def(nb::init<const std::vector<std::string>&, bool>(), nb::arg("can_interfaces"),
@@ -531,7 +541,8 @@ NB_MODULE(damiao_can, m) {
         .def("enable_all", &DamiaoCANGroup::enable_all)
         .def("disable_all", &DamiaoCANGroup::disable_all)
         .def("set_zero_all", &DamiaoCANGroup::set_zero_all)
-        .def("refresh_all_and_recv", &DamiaoCANGroup::refresh_all_and_recv,
-             nb::arg("timeout_us") = 500)
-        .def("recv_wait_all", &DamiaoCANGroup::recv_wait_all, nb::arg("timeout_us") = 500);
+        .def("flush_rx", &DamiaoCANGroup::flush_rx)
+        .def("refresh_all", &DamiaoCANGroup::refresh_all)
+        .def("recv_all", &DamiaoCANGroup::recv_all, nb::arg("timeout_us") = 500,
+             nb::call_guard<nb::gil_scoped_release>());
 }

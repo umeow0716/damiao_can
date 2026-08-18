@@ -63,7 +63,7 @@ public:
     bool is_data_available(int timeout_us = 100);
 
 protected:
-    bool initialize_socket(const std::string& interface);
+    void initialize_socket(const std::string& interface);
     void cleanup();
 
     int socket_fd_;

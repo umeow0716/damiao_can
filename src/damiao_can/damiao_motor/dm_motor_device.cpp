@@ -18,6 +18,7 @@
 #include <damiao_can/damiao_motor/dm_motor_control.hpp>
 #include <damiao_can/damiao_motor/dm_motor_device.hpp>
 #include <iostream>
+#include <stdexcept>
 
 namespace damiao_can::damiao_motor {
 
@@ -96,6 +97,9 @@ void DMCANDevice::callback(const canfd_frame& frame) {
 }
 
 can_frame DMCANDevice::create_can_frame(canid_t send_can_id, std::vector<uint8_t> data) {
+    if (data.size() > CAN_MAX_DLEN) {
+        throw std::length_error("classic CAN payload exceeds 8 bytes");
+    }
     can_frame frame;
     std::memset(&frame, 0, sizeof(frame));
     frame.can_id = send_can_id;
@@ -105,7 +109,10 @@ can_frame DMCANDevice::create_can_frame(canid_t send_can_id, std::vector<uint8_t
 }
 
 canfd_frame DMCANDevice::create_canfd_frame(canid_t send_can_id, std::vector<uint8_t> data) {
-    canfd_frame frame;
+    if (data.size() > CANFD_MAX_DLEN) {
+        throw std::length_error("CAN-FD payload exceeds 64 bytes");
+    }
+    canfd_frame frame{};
     frame.can_id = send_can_id;
     frame.len = data.size();
     frame.flags = CANFD_BRS;

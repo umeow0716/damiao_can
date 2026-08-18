@@ -17,6 +17,11 @@ import time
 # Create DamiaoCAN instance
 device = dc.DamiaoCAN("can0", True)
 
+# Always reset the SocketCAN link before motor setup.
+device.can_helper.set_down()
+device.can_helper.set_bitrate(1_000_000, 5_000_000, True)
+device.can_helper.set_up()
+
 # Initialize device motors
 motor_types = [dc.MotorType.DM4310]
 send_ids = [0x0A]
@@ -36,7 +41,9 @@ device.recv_all()
 
 # Read motor position every 0.1s for 30 iterations
 for _ in range(30):
-    device.refresh_all_and_recv()
+    device.flush_rx()
+    device.refresh_all()
+    device.recv_all()
     for motor in device.get_motors():
         print(motor.get_position())
     time.sleep(0.1)

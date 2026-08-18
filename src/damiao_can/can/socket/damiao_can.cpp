@@ -18,7 +18,10 @@
 #include <algorithm>
 #include <chrono>
 #include <damiao_can/can/socket/damiao_can.hpp>
+#include <iomanip>
+#include <ostream>
 #include <set>
+#include <sstream>
 
 namespace damiao_can::can::socket {
 
@@ -101,69 +104,47 @@ void DamiaoCAN::posforce_control_all(
     motor_collection_->posforce_control_all(posforce_params);
 }
 
-void DamiaoCAN::recv_all(int first_timeout_us) {
-    int timeout_us = first_timeout_us;
+std::string DamiaoCANRecvResult::to_string() const {
+    std::ostringstream os;
+    os << "{can_interface: \"" << can_interface << "\", expected: " << expect
+       << ", received: " << received << ", missing: [";
 
-    if (enable_fd_) {
-        canfd_frame response_frame;
-        while (can_socket_->is_data_available(timeout_us) &&
-               can_socket_->read_canfd_frame(response_frame)) {
-            master_can_device_collection_->dispatch_frame_callback(response_frame);
-            timeout_us = 0;
+    for (std::size_t i = 0; i < missing.size(); ++i) {
+        if (i != 0) {
+            os << ", ";
         }
-    } else {
-        can_frame response_frame;
-        while (can_socket_->is_data_available(timeout_us) &&
-               can_socket_->read_can_frame(response_frame)) {
-            master_can_device_collection_->dispatch_frame_callback(response_frame);
-            timeout_us = 0;
-        }
-    }
-}
 
-int DamiaoCAN::flush_rx() {
-    int flushed = 0;
-
-    if (enable_fd_) {
-        canfd_frame frame;
-        while (can_socket_->is_data_available(0) && can_socket_->read_canfd_frame(frame)) {
-            flushed++;
-        }
-    } else {
-        can_frame frame;
-        while (can_socket_->is_data_available(0) && can_socket_->read_can_frame(frame)) {
-            flushed++;
-        }
+        os << "0x" << std::hex << std::nouppercase << std::setw(2) << std::setfill('0')
+           << missing[i] << std::dec << std::setfill(' ');
     }
 
-    return flushed;
+    os << "], ok: " << (ok ? "True" : "False") << "}";
+    return os.str();
 }
 
-int DamiaoCAN::refresh_all_and_recv(int timeout_us) {
-    flush_rx();
-    refresh_all();
-    return recv_expected_responses(timeout_us, expected_response_count());
+std::ostream& operator<<(std::ostream& os, const DamiaoCANRecvResult& result) {
+    return os << result.to_string();
 }
 
-int DamiaoCAN::recv_wait_all(int timeout_us) {
-    return recv_expected_responses(timeout_us, expected_response_count());
-}
-
-int DamiaoCAN::expected_response_count() const {
-    return static_cast<int>(master_can_device_collection_->get_devices().size());
-}
-
-int DamiaoCAN::recv_expected_responses(int timeout_us, int expected_responses) {
+DamiaoCANRecvResult DamiaoCAN::recv_all(int timeout_us) {
     using clock = std::chrono::steady_clock;
     using microseconds = std::chrono::microseconds;
 
-    const auto& devices = master_can_device_collection_->get_devices();
-
-    if (devices.empty() || expected_responses <= 0) {
-        return 0;
+    if (timeout_us < 0) {
+        throw std::invalid_argument("timeout_us must be non-negative");
     }
 
-    const int target_count = std::min(expected_responses, static_cast<int>(devices.size()));
+    DamiaoCANRecvResult result;
+    result.can_interface = can_interface_;
+
+    const auto& devices = master_can_device_collection_->get_devices();
+    result.expect = static_cast<int>(devices.size());
+
+    if (devices.empty()) {
+        result.ok = true;
+        return result;
+    }
+
     std::set<canid_t> responded_ids;
     const auto deadline = clock::now() + microseconds(timeout_us);
 
@@ -175,7 +156,7 @@ int DamiaoCAN::recv_expected_responses(int timeout_us, int expected_responses) {
         return static_cast<int>(std::chrono::duration_cast<microseconds>(deadline - now).count());
     };
 
-    while (static_cast<int>(responded_ids.size()) < target_count) {
+    while (responded_ids.size() < devices.size()) {
         const int remaining = remaining_timeout_us();
         if (remaining <= 0 || !can_socket_->is_data_available(remaining)) {
             break;
@@ -200,16 +181,44 @@ int DamiaoCAN::recv_expected_responses(int timeout_us, int expected_responses) {
             }
         }
 
-        if (!read_ok) {
-            continue;
-        }
-
-        if (devices.find(response_id) != devices.end()) {
+        if (read_ok && devices.find(response_id) != devices.end()) {
             responded_ids.insert(response_id);
         }
     }
 
-    return static_cast<int>(responded_ids.size());
+    result.received = static_cast<int>(responded_ids.size());
+
+    for (const auto& [recv_id, device] : devices) {
+        if (responded_ids.find(recv_id) == responded_ids.end()) {
+            result.missing.push_back(static_cast<uint32_t>(device->get_send_can_id()));
+        }
+    }
+
+    std::sort(result.missing.begin(), result.missing.end());
+    result.ok = result.missing.empty();
+    return result;
+}
+
+int DamiaoCAN::flush_rx() {
+    int flushed = 0;
+
+    if (enable_fd_) {
+        canfd_frame frame;
+        while (can_socket_->is_data_available(0) && can_socket_->read_canfd_frame(frame)) {
+            flushed++;
+        }
+    } else {
+        can_frame frame;
+        while (can_socket_->is_data_available(0) && can_socket_->read_can_frame(frame)) {
+            flushed++;
+        }
+    }
+
+    return flushed;
+}
+
+int DamiaoCAN::expected_response_count() const {
+    return static_cast<int>(master_can_device_collection_->get_devices().size());
 }
 
 }  // namespace damiao_can::can::socket
