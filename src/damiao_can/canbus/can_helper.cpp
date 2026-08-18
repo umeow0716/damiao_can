@@ -343,7 +343,15 @@ void CANHelper::configure(const CANInterfaceConfig& config) const {
     if (config.sample_point > 0.0) {
         args.insert(args.end(), {"sample-point", format_ratio(config.sample_point)});
     }
-    args.insert(args.end(), {"restart-ms", std::to_string(config.restart_ms)});
+    if (config.restart_ms.has_value()) {
+        args.insert(
+            args.end(),
+            {
+                "restart-ms",
+                std::to_string(*config.restart_ms)
+            }
+        );
+    }
 
     if (config.fd_enabled) {
         args.insert(args.end(), {"dbitrate", std::to_string(config.dbitrate), "fd", "on"});

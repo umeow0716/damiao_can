@@ -24,7 +24,7 @@ Edit BUS_CONFIGS for your own CAN interfaces and motor IDs before running.
 
 import time
 
-import damiao_can as oa
+import damiao_can as dc
 
 
 # Edit this table for your setup.
@@ -33,16 +33,16 @@ import damiao_can as oa
 # recv_ids are motor feedback CAN IDs.
 BUS_CONFIGS = {
     "can0": {
-        "motor_types": [oa.MotorType.DM4310],
+        "motor_types": [dc.MotorType.DM4310],
         "send_ids": [0x01],
         "recv_ids": [0x11],
-        "control_modes": [oa.ControlMode.MIT],
+        "control_modes": [dc.ControlMode.MIT],
     },
     "can1": {
-        "motor_types": [oa.MotorType.DM4310],
+        "motor_types": [dc.MotorType.DM4310],
         "send_ids": [0x02],
         "recv_ids": [0x12],
-        "control_modes": [oa.ControlMode.MIT],
+        "control_modes": [dc.ControlMode.MIT],
     },
 }
 
@@ -51,7 +51,7 @@ def main() -> None:
     can_interfaces = list(BUS_CONFIGS)
 
     # True means CAN-FD enabled.
-    group = oa.DamiaoCANGroup(can_interfaces, True)
+    group = dc.DamiaoCANGroup(can_interfaces, True)
 
     for can_interface, config in BUS_CONFIGS.items():
         device = group.get_device(can_interface)
@@ -63,7 +63,7 @@ def main() -> None:
             config["control_modes"],
         )
 
-        device.set_callback_mode_all(oa.CallbackMode.STATE)
+        device.set_callback_mode_all(dc.CallbackMode.STATE)
 
         print(
             f"{can_interface}: expected responses = "

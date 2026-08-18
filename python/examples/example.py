@@ -12,35 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import damiao_can as oa
+import damiao_can as dc
 import time
 # Create DamiaoCAN instance
 
-device = oa.DamiaoCAN("can0", True)
+device = dc.DamiaoCAN("can0", True)
 
 # Initialize device motors
-motor_types = [oa.MotorType.DM4310, oa.MotorType.DM4310]
+motor_types = [dc.MotorType.DM4310, dc.MotorType.DM4310]
 send_ids = [0x01, 0x02]
 recv_ids = [0x11, 0x12]
 device.init_motors(motor_types, send_ids, recv_ids)
 
-device.set_callback_mode_all(oa.CallbackMode.IGNORE)
+device.set_callback_mode_all(dc.CallbackMode.IGNORE)
 # Use high-level operations
 device.enable_all()
 device.recv_all()
 
 
 # return to zero position
-device.set_callback_mode_all(oa.CallbackMode.STATE)
-device.mit_control_all([oa.MITParam(2, 0.5, 0, 0, 0),
-                        oa.MITParam(2, 0.5, 0, 0, 0)])
+device.set_callback_mode_all(dc.CallbackMode.STATE)
+device.mit_control_all([dc.MITParam(2, 0.5, 0, 0, 0),
+                        dc.MITParam(2, 0.5, 0, 0, 0)])
 
 device.recv_all()
 
 # torque control test
 
 device.mit_control_all(
-    [oa.MITParam(0, 0, 0, 0, 0.15), oa.MITParam(0, 0, 0, 0, 0.15)])
+    [dc.MITParam(0, 0, 0, 0, 0.15), dc.MITParam(0, 0, 0, 0, 0.15)])
 device.recv_all()
 
 # read motor position

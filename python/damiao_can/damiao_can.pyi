@@ -86,7 +86,7 @@ class CANInterfaceConfig:
     sample_point: float
     dsample_point: float
     dsjw: int
-    restart_ms: int
+    restart_ms: int | None
     bring_up: bool
     def __init__(self) -> None: ...
 class CANHelper:
