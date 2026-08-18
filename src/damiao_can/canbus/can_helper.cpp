@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <damiao_can/canbus/can_helper.hpp>
-
+#include <fcntl.h>
 #include <linux/can/netlink.h>
 #include <linux/capability.h>
 #include <linux/if_link.h>
@@ -21,13 +20,13 @@
 #include <linux/rtnetlink.h>
 #include <net/if.h>
 #include <sys/socket.h>
-#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <cerrno>
 #include <cstring>
+#include <damiao_can/canbus/can_helper.hpp>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -64,7 +63,8 @@ bool has_cap_net_admin() noexcept {
         if (line.rfind(prefix, 0) != 0) continue;
 
         try {
-            const unsigned long long mask = std::stoull(line.substr(std::strlen(prefix)), nullptr, 16);
+            const unsigned long long mask =
+                std::stoull(line.substr(std::strlen(prefix)), nullptr, 16);
             return (mask & (1ULL << CAP_NET_ADMIN)) != 0;
         } catch (...) {
             return false;
@@ -316,14 +316,16 @@ bool CANHelper::can_configure_without_sudo() const noexcept { return has_cap_net
 void CANHelper::set_up() const {
     const auto current = status();
     if (!current.exists) throw CANHelperException("CAN interface does not exist: " + interface_);
-    if (!current.is_can) throw CANHelperException("network interface is not a CAN device: " + interface_);
+    if (!current.is_can)
+        throw CANHelperException("network interface is not a CAN device: " + interface_);
     run_ip_mutation({"link", "set", "dev", interface_, "up"});
 }
 
 void CANHelper::set_down() const {
     const auto current = status();
     if (!current.exists) throw CANHelperException("CAN interface does not exist: " + interface_);
-    if (!current.is_can) throw CANHelperException("network interface is not a CAN device: " + interface_);
+    if (!current.is_can)
+        throw CANHelperException("network interface is not a CAN device: " + interface_);
     run_ip_mutation({"link", "set", "dev", interface_, "down"});
 }
 
@@ -331,12 +333,13 @@ void CANHelper::configure(const CANInterfaceConfig& config) const {
     validate_config(config);
     const CANInterfaceStatus current = status();
     if (!current.exists) throw CANHelperException("CAN interface does not exist: " + interface_);
-    if (!current.is_can) throw CANHelperException("network interface is not a CAN device: " + interface_);
+    if (!current.is_can)
+        throw CANHelperException("network interface is not a CAN device: " + interface_);
 
     set_down();
 
-    std::vector<std::string> args = {"link", "set", "dev", interface_, "type", "can", "bitrate",
-                                     std::to_string(config.bitrate)};
+    std::vector<std::string> args = {"link", "set", "dev",     interface_,
+                                     "type", "can", "bitrate", std::to_string(config.bitrate)};
     if (config.sample_point > 0.0) {
         args.insert(args.end(), {"sample-point", format_ratio(config.sample_point)});
     }

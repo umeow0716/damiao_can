@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <damiao_can/canbus/can_helper.hpp>
 #include <iostream>
 #include <string>
 #include <vector>
-
-#include <damiao_can/canbus/can_helper.hpp>
 
 #include "cli.hpp"
 
@@ -31,7 +30,8 @@ double parse_ratio(const std::string& value, const char* name) {
         }
         return parsed;
     } catch (...) {
-        throw canbus::CANHelperException(std::string(name) + " must be 0 (automatic) or in the range (0, 1)");
+        throw canbus::CANHelperException(std::string(name) +
+                                         " must be 0 (automatic) or in the range (0, 1)");
     }
 }
 
@@ -106,8 +106,8 @@ int run_can_configure(const std::vector<std::string>& interfaces, int bitrate, i
 
             helper.configure(config);
             const auto after = helper.status();
-            std::cout << "✓ [" << iface << "] " << (after.up ? "UP" : "configured")
-                      << ", MTU " << after.mtu << "." << std::endl;
+            std::cout << "✓ [" << iface << "] " << (after.up ? "UP" : "configured") << ", MTU "
+                      << after.mtu << "." << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "✗ [" << iface << "] " << e.what() << std::endl;
             ++failed;
