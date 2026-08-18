@@ -36,7 +36,9 @@ device.recv_all()
 
 # Read motor position every 0.1s for 30 iterations
 for _ in range(30):
-    device.refresh_all_and_recv()
+    device.flush_rx()
+    device.refresh_all()
+    device.recv_all()
     for motor in device.get_motors():
         print(motor.get_position())
     time.sleep(0.1)

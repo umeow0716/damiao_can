@@ -5,7 +5,7 @@ from __future__ import annotations
 import collections.abc
 import enum
 import typing
-__all__: list[str] = ['ACC', 'MotorComponent', 'CANDevice', 'CANDeviceCollection', 'CANPacket', 'CANSocket', 'CANSocketException', 'COUNT', 'CTRL_MODE', 'CallbackMode', 'CanFdFrame', 'CanFrame', 'CanPacketDecoder', 'CanPacketEncoder', 'ControlMode', 'DEC', 'DM10010', 'DM10010L', 'DM3507', 'DM4310', 'DM4310_48V', 'DM4340', 'DM4340_48V', 'DM6006', 'DM8006', 'DM8009', 'DMDeviceCollection', 'DMG6220', 'DMH3510', 'DMH6215', 'Damp', 'Deta', 'ESC_ID', 'Flux', 'GREF', 'Gr', 'IGNORE', 'IQ_c1', 'I_BW', 'Inertia', 'KI_APR', 'KI_ASR', 'KP_APR', 'KP_ASR', 'KT_Value', 'LS', 'LimitParam', 'MAX_SPD', 'MIT', 'MITParam', 'MST_ID', 'Motor', 'MotorDeviceCan', 'MotorStateResult', 'MotorType', 'MotorVariable', 'NPP', 'OC_Value', 'OT_Value', 'OV_Value', 'DamiaoCAN', 'DamiaoCANGroup', 'DamiaoCANRefreshResult', 'PARAM', 'PMAX', 'POS_FORCE', 'POS_VEL', 'ParamResult', 'PosForceParam', 'PosVelParam', 'VelParam', 'Rs', 'SN', 'STATE', 'TIMEOUT', 'TMAX', 'UV_Value', 'VEL', 'VL_c1', 'VMAX', 'V_BW', 'can_br', 'dir', 'hw_ver', 'k1', 'k2', 'm_off', 'p_m', 'sub_ver', 'sw_ver', 'u_off', 'v_off', 'xout']
+__all__: list[str] = ['ACC', 'MotorComponent', 'CANDevice', 'CANDeviceCollection', 'CANPacket', 'CANSocket', 'CANSocketException', 'COUNT', 'CTRL_MODE', 'CallbackMode', 'CanFdFrame', 'CanFrame', 'CanPacketDecoder', 'CanPacketEncoder', 'ControlMode', 'DEC', 'DM10010', 'DM10010L', 'DM3507', 'DM4310', 'DM4310_48V', 'DM4340', 'DM4340_48V', 'DM6006', 'DM8006', 'DM8009', 'DMDeviceCollection', 'DMG6220', 'DMH3510', 'DMH6215', 'Damp', 'Deta', 'ESC_ID', 'Flux', 'GREF', 'Gr', 'IGNORE', 'IQ_c1', 'I_BW', 'Inertia', 'KI_APR', 'KI_ASR', 'KP_APR', 'KP_ASR', 'KT_Value', 'LS', 'LimitParam', 'MAX_SPD', 'MIT', 'MITParam', 'MST_ID', 'Motor', 'MotorDeviceCan', 'MotorStateResult', 'MotorType', 'MotorVariable', 'NPP', 'OC_Value', 'OT_Value', 'OV_Value', 'DamiaoCAN', 'DamiaoCANGroup', 'DamiaoCANRecvResult', 'PARAM', 'PMAX', 'POS_FORCE', 'POS_VEL', 'ParamResult', 'PosForceParam', 'PosVelParam', 'VelParam', 'Rs', 'SN', 'STATE', 'TIMEOUT', 'TMAX', 'UV_Value', 'VEL', 'VL_c1', 'VMAX', 'V_BW', 'can_br', 'dir', 'hw_ver', 'k1', 'k2', 'm_off', 'p_m', 'sub_ver', 'sw_ver', 'u_off', 'v_off', 'xout']
 class MotorComponent(DMDeviceCollection):
     @staticmethod
     def __new__(type, *args, **kwargs):
@@ -467,13 +467,9 @@ class DamiaoCAN:
         ...
     def query_param_one(self, index: int, rid: int) -> None:
         ...
-    def recv_all(self, first_timeout_us: int = 500) -> None:
-        ...
-    def recv_wait_all(self, timeout_us: int = 500) -> int:
+    def recv_all(self, timeout_us: int = 500) -> int:
         ...
     def refresh_all(self) -> None:
-        ...
-    def refresh_all_and_recv(self, timeout_us: int = 500) -> int:
         ...
     def refresh_one(self, index: int) -> None:
         ...
@@ -554,7 +550,7 @@ class VelParam:
     @typing.overload
     def __init__(self, dq: float) -> None:
         ...
-class DamiaoCANRefreshResult:
+class DamiaoCANRecvResult:
     interface: str
     received: int
     expected: int
@@ -599,10 +595,7 @@ class DamiaoCANGroup:
     def set_zero_all(self) -> None:
         ...
 
-    def refresh_all_and_recv(self, timeout_us: int = 500) -> list[DamiaoCANRefreshResult]:
-        ...
-
-    def recv_wait_all(self, timeout_us: int = 500) -> list[DamiaoCANRefreshResult]:
+    def recv_all(self, timeout_us: int = 500) -> list[DamiaoCANRecvResult]:
         ...
 ACC: MotorVariable  # value = MotorVariable.ACC
 COUNT: MotorVariable  # value = MotorVariable.COUNT

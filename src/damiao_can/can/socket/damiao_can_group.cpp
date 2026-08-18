@@ -9,11 +9,6 @@
 
 namespace damiao_can::can::socket {
 
-enum class Operation {
-    RefreshAndRecv,
-    RecvWaitAll,
-};
-
 struct DamiaoCANGroup::Worker {
     explicit Worker(std::unique_ptr<DamiaoCAN> device_) : device(std::move(device_)) {}
 
@@ -49,7 +44,7 @@ struct DamiaoCANGroup::Worker {
         join();
     }
 
-    void request_operation(Operation new_operation, int new_timeout_us) {
+    void request_recv_all(int new_timeout_us) {
         {
             std::lock_guard<std::mutex> lock(mutex);
 
@@ -57,7 +52,6 @@ struct DamiaoCANGroup::Worker {
                 throw std::runtime_error("DamiaoCANGroup worker is stopped");
             }
 
-            operation = new_operation;
             timeout_us = new_timeout_us;
             done = false;
             request = true;
@@ -66,12 +60,12 @@ struct DamiaoCANGroup::Worker {
         cv.notify_one();
     }
 
-    DamiaoCANRefreshResult wait_result() {
+    DamiaoCANRecvResult wait_result() {
         std::unique_lock<std::mutex> lock(mutex);
         cv.wait(lock, [this]() { return done || stop; });
 
         if (!done && stop) {
-            DamiaoCANRefreshResult stopped_result;
+            DamiaoCANRecvResult stopped_result;
             stopped_result.interface = device ? device->can_interface() : "";
             stopped_result.ok = false;
             stopped_result.error = "DamiaoCANGroup worker stopped before completing operation";
@@ -84,7 +78,6 @@ struct DamiaoCANGroup::Worker {
     void run() noexcept {
         while (true) {
             int local_timeout_us = 0;
-            Operation local_operation = Operation::RefreshAndRecv;
 
             {
                 std::unique_lock<std::mutex> lock(mutex);
@@ -94,13 +87,11 @@ struct DamiaoCANGroup::Worker {
                     return;
                 }
 
-                local_operation = operation;
                 local_timeout_us = timeout_us;
                 request = false;
             }
 
-            DamiaoCANRefreshResult local_result =
-                execute_operation(local_operation, local_timeout_us);
+            DamiaoCANRecvResult local_result = execute_recv_all(local_timeout_us);
 
             {
                 std::lock_guard<std::mutex> lock(mutex);
@@ -112,23 +103,13 @@ struct DamiaoCANGroup::Worker {
         }
     }
 
-    DamiaoCANRefreshResult execute_operation(Operation local_operation,
-                                             int local_timeout_us) noexcept {
-        DamiaoCANRefreshResult local_result;
+    DamiaoCANRecvResult execute_recv_all(int local_timeout_us) noexcept {
+        DamiaoCANRecvResult local_result;
         local_result.interface = device->can_interface();
 
         try {
             local_result.expected = device->expected_response_count();
-
-            switch (local_operation) {
-                case Operation::RefreshAndRecv:
-                    local_result.received = device->refresh_all_and_recv(local_timeout_us);
-                    break;
-                case Operation::RecvWaitAll:
-                    local_result.received = device->recv_wait_all(local_timeout_us);
-                    break;
-            }
-
+            local_result.received = device->recv_all(local_timeout_us);
             local_result.ok = (local_result.received == local_result.expected);
         } catch (const std::exception& e) {
             local_result.ok = false;
@@ -141,14 +122,6 @@ struct DamiaoCANGroup::Worker {
         return local_result;
     }
 
-    void request_refresh(int new_timeout_us) {
-        request_operation(Operation::RefreshAndRecv, new_timeout_us);
-    }
-
-    void request_recv_wait_all(int new_timeout_us) {
-        request_operation(Operation::RecvWaitAll, new_timeout_us);
-    }
-
     std::unique_ptr<DamiaoCAN> device;
     std::thread thread;
     std::mutex mutex;
@@ -158,9 +131,8 @@ struct DamiaoCANGroup::Worker {
     bool request = false;
     bool done = true;
 
-    Operation operation = Operation::RefreshAndRecv;
     int timeout_us = 500;
-    DamiaoCANRefreshResult result;
+    DamiaoCANRecvResult result;
 };
 
 DamiaoCANGroup::DamiaoCANGroup(const std::vector<std::string>& can_interfaces, bool enable_fd) {
@@ -263,7 +235,7 @@ void DamiaoCANGroup::set_zero_all() {
     }
 }
 
-std::vector<DamiaoCANRefreshResult> DamiaoCANGroup::refresh_all_and_recv(int timeout_us) {
+std::vector<DamiaoCANRecvResult> DamiaoCANGroup::recv_all(int timeout_us) {
     if (timeout_us < 0) {
         throw std::invalid_argument("timeout_us must be non-negative");
     }
@@ -271,31 +243,10 @@ std::vector<DamiaoCANRefreshResult> DamiaoCANGroup::refresh_all_and_recv(int tim
     std::lock_guard<std::mutex> lock(api_mutex_);
 
     for (auto& worker : workers_) {
-        worker->request_refresh(timeout_us);
+        worker->request_recv_all(timeout_us);
     }
 
-    std::vector<DamiaoCANRefreshResult> results;
-    results.reserve(workers_.size());
-
-    for (auto& worker : workers_) {
-        results.push_back(worker->wait_result());
-    }
-
-    return results;
-}
-
-std::vector<DamiaoCANRefreshResult> DamiaoCANGroup::recv_wait_all(int timeout_us) {
-    if (timeout_us < 0) {
-        throw std::invalid_argument("timeout_us must be non-negative");
-    }
-
-    std::lock_guard<std::mutex> lock(api_mutex_);
-
-    for (auto& worker : workers_) {
-        worker->request_recv_wait_all(timeout_us);
-    }
-
-    std::vector<DamiaoCANRefreshResult> results;
+    std::vector<DamiaoCANRecvResult> results;
     results.reserve(workers_.size());
 
     for (auto& worker : workers_) {

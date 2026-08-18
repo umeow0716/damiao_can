@@ -62,7 +62,7 @@ __all__ = [
     "MotorComponent",
     "DamiaoCAN",
     "DamiaoCANGroup",
-    "DamiaoCANRefreshResult",
+    "DamiaoCANRecvResult",
 
     # Exceptions
     "CANSocketException",

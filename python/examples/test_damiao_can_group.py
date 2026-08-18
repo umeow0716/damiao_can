@@ -16,8 +16,9 @@
 Example: refresh multiple CAN buses in parallel with DamiaoCANGroup.
 
 This example creates one DamiaoCAN instance per CAN interface through DamiaoCANGroup,
-initializes motors on each bus, then calls group.refresh_all_and_recv() to refresh
-all buses in parallel.
+initializes motors on each bus, then uses flush_rx() + refresh_all() and calls
+group.recv_all() to receive all buses in parallel. Each CAN interface keeps its
+own receive worker thread.
 
 Edit BUS_CONFIGS for your own CAN interfaces and motor IDs before running.
 """
@@ -74,7 +75,15 @@ def main() -> None:
         group.enable_all()
 
         for step in range(30):
-            results = group.refresh_all_and_recv(timeout_us=500)
+            # Build the former refresh-and-receive behavior explicitly. Responses
+            # remain queued in each SocketCAN socket until that interface's worker
+            # thread starts receiving them.
+            for can_interface in can_interfaces:
+                device = group.get_device(can_interface)
+                device.flush_rx()
+                device.refresh_all()
+
+            results = group.recv_all(timeout_us=500)
 
             print(f"\nstep {step}")
 

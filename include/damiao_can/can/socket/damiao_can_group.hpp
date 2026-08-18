@@ -10,7 +10,7 @@
 
 namespace damiao_can::can::socket {
 
-struct DamiaoCANRefreshResult {
+struct DamiaoCANRecvResult {
     std::string interface;
     int received = 0;
     int expected = 0;
@@ -40,8 +40,7 @@ public:
     void disable_all();
     void set_zero_all();
 
-    std::vector<DamiaoCANRefreshResult> refresh_all_and_recv(int timeout_us = 500);
-    std::vector<DamiaoCANRefreshResult> recv_wait_all(int timeout_us = 500);
+    std::vector<DamiaoCANRecvResult> recv_all(int timeout_us = 500);
 
 private:
     struct Worker;

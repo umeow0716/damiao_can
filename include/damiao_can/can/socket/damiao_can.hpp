@@ -65,10 +65,8 @@ public:
     void posforce_control_one(int i, const damiao_motor::PosForceParam& posforce_param);
     void posforce_control_all(const std::vector<damiao_motor::PosForceParam>& posforce_params);
 
-    void recv_all(int first_timeout_us = 500);
+    int recv_all(int timeout_us = 500);
     int flush_rx();
-    int refresh_all_and_recv(int timeout_us = 500);
-    int recv_wait_all(int timeout_us = 500);
     int expected_response_count() const;
 
 private:
@@ -80,7 +78,6 @@ private:
     std::unique_ptr<canbus::CANDeviceCollection> master_can_device_collection_;
 
     void register_motor_collection();
-    int recv_expected_responses(int timeout_us, int expected_responses);
 };
 
 }  // namespace damiao_can::can::socket

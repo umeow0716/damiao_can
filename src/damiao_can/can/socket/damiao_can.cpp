@@ -101,69 +101,19 @@ void DamiaoCAN::posforce_control_all(
     motor_collection_->posforce_control_all(posforce_params);
 }
 
-void DamiaoCAN::recv_all(int first_timeout_us) {
-    int timeout_us = first_timeout_us;
-
-    if (enable_fd_) {
-        canfd_frame response_frame;
-        while (can_socket_->is_data_available(timeout_us) &&
-               can_socket_->read_canfd_frame(response_frame)) {
-            master_can_device_collection_->dispatch_frame_callback(response_frame);
-            timeout_us = 0;
-        }
-    } else {
-        can_frame response_frame;
-        while (can_socket_->is_data_available(timeout_us) &&
-               can_socket_->read_can_frame(response_frame)) {
-            master_can_device_collection_->dispatch_frame_callback(response_frame);
-            timeout_us = 0;
-        }
-    }
-}
-
-int DamiaoCAN::flush_rx() {
-    int flushed = 0;
-
-    if (enable_fd_) {
-        canfd_frame frame;
-        while (can_socket_->is_data_available(0) && can_socket_->read_canfd_frame(frame)) {
-            flushed++;
-        }
-    } else {
-        can_frame frame;
-        while (can_socket_->is_data_available(0) && can_socket_->read_can_frame(frame)) {
-            flushed++;
-        }
-    }
-
-    return flushed;
-}
-
-int DamiaoCAN::refresh_all_and_recv(int timeout_us) {
-    flush_rx();
-    refresh_all();
-    return recv_expected_responses(timeout_us, expected_response_count());
-}
-
-int DamiaoCAN::recv_wait_all(int timeout_us) {
-    return recv_expected_responses(timeout_us, expected_response_count());
-}
-
-int DamiaoCAN::expected_response_count() const {
-    return static_cast<int>(master_can_device_collection_->get_devices().size());
-}
-
-int DamiaoCAN::recv_expected_responses(int timeout_us, int expected_responses) {
+int DamiaoCAN::recv_all(int timeout_us) {
     using clock = std::chrono::steady_clock;
     using microseconds = std::chrono::microseconds;
 
-    const auto& devices = master_can_device_collection_->get_devices();
+    if (timeout_us < 0) {
+        throw std::invalid_argument("timeout_us must be non-negative");
+    }
 
-    if (devices.empty() || expected_responses <= 0) {
+    const auto& devices = master_can_device_collection_->get_devices();
+    if (devices.empty()) {
         return 0;
     }
 
-    const int target_count = std::min(expected_responses, static_cast<int>(devices.size()));
     std::set<canid_t> responded_ids;
     const auto deadline = clock::now() + microseconds(timeout_us);
 
@@ -172,10 +122,11 @@ int DamiaoCAN::recv_expected_responses(int timeout_us, int expected_responses) {
         if (now >= deadline) {
             return 0;
         }
-        return static_cast<int>(std::chrono::duration_cast<microseconds>(deadline - now).count());
+        return static_cast<int>(
+            std::chrono::duration_cast<microseconds>(deadline - now).count());
     };
 
-    while (static_cast<int>(responded_ids.size()) < target_count) {
+    while (responded_ids.size() < devices.size()) {
         const int remaining = remaining_timeout_us();
         if (remaining <= 0 || !can_socket_->is_data_available(remaining)) {
             break;
@@ -200,16 +151,35 @@ int DamiaoCAN::recv_expected_responses(int timeout_us, int expected_responses) {
             }
         }
 
-        if (!read_ok) {
-            continue;
-        }
-
-        if (devices.find(response_id) != devices.end()) {
+        if (read_ok && devices.find(response_id) != devices.end()) {
             responded_ids.insert(response_id);
         }
     }
 
     return static_cast<int>(responded_ids.size());
 }
+
+int DamiaoCAN::flush_rx() {
+    int flushed = 0;
+
+    if (enable_fd_) {
+        canfd_frame frame;
+        while (can_socket_->is_data_available(0) && can_socket_->read_canfd_frame(frame)) {
+            flushed++;
+        }
+    } else {
+        can_frame frame;
+        while (can_socket_->is_data_available(0) && can_socket_->read_can_frame(frame)) {
+            flushed++;
+        }
+    }
+
+    return flushed;
+}
+
+int DamiaoCAN::expected_response_count() const {
+    return static_cast<int>(master_can_device_collection_->get_devices().size());
+}
+
 
 }  // namespace damiao_can::can::socket

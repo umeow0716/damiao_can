@@ -14,7 +14,7 @@ The repository provides a SocketCAN C++ core and Python bindings focused on dire
 - Python package installation from the `python/` subdirectory through Git URLs.
 - Python type stubs (`.pyi`) and `py.typed` for IDE completion and static analysis.
 - Simplified high-level `DamiaoCAN` API with direct motor access.
-- `flush_rx()` and `refresh_all_and_recv()` helpers for more reliable state refresh from Python.
+- A single `recv_all()` receive API, plus `flush_rx()` and `refresh_all()` for explicit receive-flow composition.
 - Pure velocity control support through `ControlMode.VEL`, `VelParam`, and `vel_control_one/all`.
 - Additional Python examples for low-level motor-control usage.
 
@@ -164,7 +164,9 @@ device.init_motors(
 
 device.enable_all()
 
-received = device.refresh_all_and_recv()
+device.flush_rx()
+device.refresh_all()
+received = device.recv_all()
 print("received frames:", received)
 
 for motor in device.get_motors():
