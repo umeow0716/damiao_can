@@ -75,14 +75,10 @@ def main() -> None:
         group.enable_all()
 
         for step in range(30):
-            # Build the former refresh-and-receive behavior explicitly. Responses
-            # remain queued in each SocketCAN socket until that interface's worker
-            # thread starts receiving them.
-            for can_interface in can_interfaces:
-                device = group.get_device(can_interface)
-                device.flush_rx()
-                device.refresh_all()
-
+            # These two group helpers intentionally run sequentially across CAN
+            # interfaces. Only recv_all() uses the per-interface RX worker threads.
+            group.flush_rx()
+            group.refresh_all()
             results = group.recv_all(timeout_us=500)
 
             print(f"\nstep {step}")

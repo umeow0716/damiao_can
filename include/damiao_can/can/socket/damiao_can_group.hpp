@@ -40,6 +40,8 @@ public:
     void disable_all();
     void set_zero_all();
 
+    void flush_rx();
+    void refresh_all();
     std::vector<DamiaoCANRecvResult> recv_all(int timeout_us = 500);
 
 private:

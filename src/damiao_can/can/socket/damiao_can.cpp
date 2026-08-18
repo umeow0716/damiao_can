@@ -122,8 +122,7 @@ int DamiaoCAN::recv_all(int timeout_us) {
         if (now >= deadline) {
             return 0;
         }
-        return static_cast<int>(
-            std::chrono::duration_cast<microseconds>(deadline - now).count());
+        return static_cast<int>(std::chrono::duration_cast<microseconds>(deadline - now).count());
     };
 
     while (responded_ids.size() < devices.size()) {
@@ -180,6 +179,5 @@ int DamiaoCAN::flush_rx() {
 int DamiaoCAN::expected_response_count() const {
     return static_cast<int>(master_can_device_collection_->get_devices().size());
 }
-
 
 }  // namespace damiao_can::can::socket

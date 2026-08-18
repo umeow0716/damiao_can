@@ -235,6 +235,22 @@ void DamiaoCANGroup::set_zero_all() {
     }
 }
 
+void DamiaoCANGroup::flush_rx() {
+    std::lock_guard<std::mutex> lock(api_mutex_);
+
+    for (auto& worker : workers_) {
+        worker->device->flush_rx();
+    }
+}
+
+void DamiaoCANGroup::refresh_all() {
+    std::lock_guard<std::mutex> lock(api_mutex_);
+
+    for (auto& worker : workers_) {
+        worker->device->refresh_all();
+    }
+}
+
 std::vector<DamiaoCANRecvResult> DamiaoCANGroup::recv_all(int timeout_us) {
     if (timeout_us < 0) {
         throw std::invalid_argument("timeout_us must be non-negative");

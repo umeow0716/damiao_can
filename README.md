@@ -169,6 +169,16 @@ device.refresh_all()
 received = device.recv_all()
 print("received frames:", received)
 
+For multiple CAN interfaces, `DamiaoCANGroup` exposes the same receive-flow helpers:
+
+```python
+group.flush_rx()
+group.refresh_all()
+results = group.recv_all()
+```
+
+`flush_rx()` and `refresh_all()` simply iterate over each CAN device. `recv_all()` keeps one receive worker thread per CAN interface.
+
 for motor in device.get_motors():
     print("position:", motor.get_position())
     print("velocity:", motor.get_velocity())

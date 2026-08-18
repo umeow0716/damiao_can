@@ -528,6 +528,8 @@ NB_MODULE(damiao_can, m) {
         .def("enable_all", &DamiaoCANGroup::enable_all)
         .def("disable_all", &DamiaoCANGroup::disable_all)
         .def("set_zero_all", &DamiaoCANGroup::set_zero_all)
+        .def("flush_rx", &DamiaoCANGroup::flush_rx)
+        .def("refresh_all", &DamiaoCANGroup::refresh_all)
         .def("recv_all", &DamiaoCANGroup::recv_all, nb::arg("timeout_us") = 500,
              nb::call_guard<nb::gil_scoped_release>());
 }
