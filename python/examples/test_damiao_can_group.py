@@ -51,16 +51,15 @@ BUS_CONFIGS = {
 def main() -> None:
     can_interfaces = list(BUS_CONFIGS)
 
-    # True means CAN-FD enabled.
-    group = dc.DamiaoCANGroup(can_interfaces, True)
-
-    # Configure every CAN interface before motor setup. Configuration is
-    # sequential; the group keeps one RX worker thread per CAN interface.
+    # Configure every CAN interface before DamiaoCANGroup creates its sockets.
     for can_interface in can_interfaces:
-        helper = group.get_device(can_interface).can_helper
+        helper = dc.CANHelper(can_interface)
         helper.set_down()
         helper.set_bitrate(1_000_000, 5_000_000, True)
         helper.set_up()
+
+    # True means CAN-FD enabled. The group keeps one RX worker thread per interface.
+    group = dc.DamiaoCANGroup(can_interfaces, True)
 
     for can_interface, config in BUS_CONFIGS.items():
         device = group.get_device(can_interface)

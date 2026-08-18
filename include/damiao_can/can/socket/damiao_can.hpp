@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "../../canbus/can_device_collection.hpp"
-#include "../../canbus/can_helper.hpp"
 #include "../../canbus/can_socket.hpp"
 #include "motor_component.hpp"
 
@@ -46,8 +45,6 @@ public:
 
     std::string can_interface() const noexcept { return can_interface_; }
     bool can_fd_enabled() const noexcept { return enable_fd_; }
-    canbus::CANHelper& get_can_helper() noexcept { return can_helper_; }
-    const canbus::CANHelper& get_can_helper() const noexcept { return can_helper_; }
 
     void init_motors(const std::vector<damiao_motor::MotorType>& motor_types,
                      const std::vector<uint32_t>& send_can_ids,
@@ -87,7 +84,6 @@ public:
 private:
     std::string can_interface_;
     bool enable_fd_;
-    canbus::CANHelper can_helper_;
     std::unique_ptr<canbus::CANSocket> can_socket_;
     std::unique_ptr<MotorComponent> motor_collection_;
     std::unique_ptr<canbus::CANDeviceCollection> master_can_device_collection_;
