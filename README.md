@@ -1,164 +1,29 @@
 # Damiao CAN
 
-> [!NOTE]
-> This repository is a DaMiao CAN motor-control library derived from an Enactic CAN implementation.
->
-> The intended usage of this fork is to install and use the Python package directly from this Git repository.
->
-> No system package is required. A local/Git Python install builds the extension against the C++ source tree included in this repository, keeping the Python bindings and C++ core in sync.
-
-The repository provides a SocketCAN C++ core and Python bindings focused on direct DaMiao motor control.
-
-## Features
-
-- Python package installation from the `python/` subdirectory through Git URLs.
-- Python type stubs (`.pyi`) and `py.typed` for IDE completion and static analysis.
-- Simplified high-level `DamiaoCAN` API with direct motor access.
-- A single `recv_all()` receive API, plus `flush_rx()` and `refresh_all()` for explicit receive-flow composition.
-- Pure velocity control support through `ControlMode.VEL`, `VelParam`, and `vel_control_one/all`.
-- Additional Python examples for low-level motor-control usage.
-
----
+Python-first SocketCAN library for controlling DaMiao motors on Linux. The Python package uses the C++ core in this repository for low-level CAN communication.
 
 ## Requirements
 
-This package is intended for Linux systems with SocketCAN support.
-
-You need:
-
-- Linux with SocketCAN support
-- A working CAN or CAN-FD adapter
-- Python 3.10+
-- A C++17-capable compiler
-- CMake / Ninja or an equivalent build backend
-
-On Ubuntu, a typical setup is:
-
-```bash
-sudo apt update
-sudo apt install -y \
-  build-essential \
-  cmake \
-  ninja-build \
-  python3-dev \
-  python3-venv \
-  can-utils
-```
-
-`can-utils` is optional but useful for debugging with tools such as `candump`, `cansend`, and `ip link`.
-
----
+Linux with SocketCAN, Python 3.10+, and a CAN/CAN-FD adapter. Installing from source also requires a C++17 compiler and CMake.
 
 ## Install
-
-### Install with pip
 
 ```bash
 pip install "git+https://github.com/umeow0716/damiao_can.git@main#subdirectory=python"
 ```
-
-### Install with uv
-
-```bash
-uv add "git+https://github.com/umeow0716/damiao_can.git@main#subdirectory=python"
-```
-
-### Local editable install
-
-```bash
-git clone https://github.com/umeow0716/damiao_can.git
-cd damiao_can/python
-pip install -e .
-```
-
-Or with `uv`:
-
-```bash
-git clone https://github.com/umeow0716/damiao_can.git
-cd damiao_can/python
-uv pip install -e .
-```
-
-The Python package builds a native extension module. When installed from this repository, the build uses the C++ source tree included in this repo.
-
----
-
-## Setup SocketCAN
-
-### Classic CAN
-
-```bash
-sudo ip link set can0 down
-sudo ip link set can0 type can bitrate 1000000
-sudo ip link set can0 up
-```
-
-### CAN-FD
-
-```bash
-sudo ip link set can0 down
-sudo ip link set can0 type can bitrate 1000000 dbitrate 5000000 fd on
-sudo ip link set can0 up
-```
-
-Check the interface:
-
-```bash
-ip -details link show can0
-```
-
-Monitor frames:
-
-```bash
-candump can0
-```
-
----
-
-## CAN interface helper
-
-`CANHelper` can inspect a SocketCAN interface without root privileges. Read-only probes do not invoke `sudo`.
-
-```python
-import damiao_can as dc
-
-helper = dc.CANHelper("can0")
-status = helper.status()
-
-print(status.exists, status.is_can, status.up, status.mtu)
-print(status.bitrate, status.dbitrate, status.fd_enabled)
-```
-
-Configuration is explicit. If the process already has `CAP_NET_ADMIN`, it is used directly. Otherwise the helper starts `sudo` as a child process and lets `sudo` request authorization from the controlling terminal. Passwords are never passed through the Python/C++ API.
-
-For the common CAN-FD setup, keep the link transition explicit:
-
-```python
-helper.set_down()
-helper.set_bitrate(1_000_000, 5_000_000, True)
-helper.set_up()
-```
-
-`CANInterfaceConfig` and `helper.configure(config)` remain available for advanced timing options.
-
-A successfully constructed `DamiaoCAN` also exposes the helper as `device.can_helper`. Use a standalone `CANHelper` when the interface may not exist yet, because `DamiaoCAN` still opens its SocketCAN socket during construction.
-
----
 
 ## Basic Python Usage
 
 ```python
 import damiao_can as dc
 
+# True enables CAN-FD socket support.
 device = dc.DamiaoCAN("can0", True)
-device.can_helper.set_down()
-device.can_helper.set_bitrate(1_000_000, 5_000_000, True)
-device.can_helper.set_up()
 
 device.init_motors(
     [dc.MotorType.DM4310],
-    [0x01],  # send CAN ID
-    [0x11],  # receive CAN ID
+    [0x01],  # send_id
+    [0x11],  # recv_id
     [dc.ControlMode.MIT],
 )
 
@@ -167,65 +32,61 @@ device.enable_all()
 device.flush_rx()
 device.refresh_all()
 result = device.recv_all()
+
 print(result)
 # {can_interface: "can0", expected: 1, received: 1, missing: [], ok: True}
-# Properties: can_interface, expect, received, missing, ok.
-
-# The `missing` property contains motor send IDs. The result formatter displays
-# those IDs as hexadecimal values such as 0x01.
-
-# Multiple CAN interfaces use the same explicit receive flow. flush_rx() and
-# refresh_all() iterate over each CAN device; recv_all() uses one receive
-# worker thread per CAN interface.
-group = dc.DamiaoCANGroup(["can0", "can1"], True)
-group.flush_rx()
-group.refresh_all()
-results = group.recv_all()
-print(results)
-
-# Lookup by index:
-print(results.get(index=0))
-
-# Lookup by CAN interface. can_id takes priority when both arguments are set:
-print(results.get(index=999, can_id="can1"))
 
 device.disable_all()
 ```
 
----
+For multiple CAN interfaces:
 
-## Development
+```python
+group = dc.DamiaoCANGroup(["can0", "can1"], True)
 
-Clone the repository:
+group.flush_rx()
+group.refresh_all()
+results = group.recv_all()
+
+print(results)
+print(results.get(can_id="can0"))
+```
+
+## Python CLI
+
+The package also provides a small command-line interface:
 
 ```bash
-git clone https://github.com/umeow0716/damiao_can.git
-cd damiao_can
+python -m damiao_can --help
 ```
 
-Install the Python package locally:
+Use the command-specific help for available options and examples:
 
 ```bash
-cd python
-pip install -e .
+python -m damiao_can set-zero --help
+python -m damiao_can set-baudrate --help
+python -m damiao_can drop-test --help
 ```
 
-For C++ development, see:
+## CAN Interface Helper
 
-```text
-dev/README.md
+`CANHelper` provides SocketCAN interface inspection and configuration from Python.
+
+```python
+import damiao_can as dc
+
+helper = dc.CANHelper("can0")
+print(helper.status())
+
+helper.set_down()
+helper.set_bitrate(1_000_000, 5_000_000, True)
+helper.set_up()
 ```
 
----
-
-## Project origin
-
-This codebase is derived from an Enactic CAN implementation and retains the original Apache-2.0 license and copyright notices. Git history records the detailed provenance.
-
----
+Read-only status checks do not require root privileges. Configuration uses the process's existing network capability when available and otherwise requests authorization through `sudo`.
 
 ## License
 
-Licensed under the Apache License 2.0. See `LICENSE.txt` for details.
+Licensed under the Apache License 2.0. See `LICENSE.txt`.
 
-Copyright 2025 Enactic, Inc.
+This repository contains modifications to code originally copyright 2025 Enactic, Inc.
