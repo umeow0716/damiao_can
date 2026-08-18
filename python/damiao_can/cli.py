@@ -192,7 +192,7 @@ def _cmd_set_zero(args: argparse.Namespace) -> int:
 
     device.flush_rx()
     device.set_zero_all()
-    result = device.recv_all()
+    result = device.recv_all(1_000_000)
     print(result)
     return 0 if result.ok else 2
 
@@ -288,7 +288,8 @@ def _cmd_drop_test(args: argparse.Namespace) -> int:
     except KeyboardInterrupt:
         pass
     except RuntimeError as exc:
-        exc.args = (exc.args[0] + '\nIf error show \'No buffer space available\'\nTry to set --wait-us longer for test', )
+        exc.args = (
+            exc.args[0] + '\nIf error show \'No buffer space available\'\nTry to set --wait-us longer for test', )
         raise exc
     finally:
         _render_progress(min(time.monotonic() - start,
