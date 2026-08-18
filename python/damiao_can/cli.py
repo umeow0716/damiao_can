@@ -288,7 +288,8 @@ def _cmd_drop_test(args: argparse.Namespace) -> int:
     except KeyboardInterrupt:
         pass
     except RuntimeError as exc:
-        exc.args = (exc.args[0] + '\nIf error show \'No buffer space available\'\nTry to set --wait-us longer for test', )
+        exc.args = (
+            exc.args[0] + '\nIf error show \'No buffer space available\'\nTry to set --wait-us longer for test', )
         raise exc
     finally:
         _render_progress(min(time.monotonic() - start,
