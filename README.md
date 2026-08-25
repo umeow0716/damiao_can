@@ -12,6 +12,17 @@ Linux with SocketCAN, Python 3.10+, and a CAN/CAN-FD adapter. Installing from so
 pip install "git+https://github.com/umeow0716/damiao_can.git@main#subdirectory=python"
 ```
 
+If you do not want `CANHelper` to request root authorization through `sudo` when configuring a CAN interface, grant your login session the `CAP_NET_ADMIN` ambient capability. On Ubuntu/Debian with `pam_cap`:
+
+```bash
+sudo apt install libpam-cap
+echo "^cap_net_admin ${USER}" | sudo tee -a /etc/security/capability.conf
+sudo pam-auth-update --enable capability
+sudo reboot
+```
+
+Log out and log back in after changing the PAM capability configuration. `CAP_NET_ADMIN` allows network-interface administration, so only grant it to users that should be allowed to configure network devices.
+
 ## Basic Python Usage
 
 ```python
@@ -45,10 +56,25 @@ print(result)
 device.disable_all()
 ```
 
-For multiple CAN interfaces, configure every interface before creating the group:
+For multiple CAN interfaces, configure every interface before creating the group, then initialize the motors on each interface through its `DamiaoCAN` device:
 
 ```python
-interfaces = ["can0", "can1"]
+bus_configs = {
+    "can0": {
+        "motor_types": [dc.MotorType.DM4310],
+        "send_ids": [0x01],
+        "recv_ids": [0x11],
+        "control_modes": [dc.ControlMode.MIT],
+    },
+    "can1": {
+        "motor_types": [dc.MotorType.DM4310],
+        "send_ids": [0x02],
+        "recv_ids": [0x12],
+        "control_modes": [dc.ControlMode.MIT],
+    },
+}
+
+interfaces = list(bus_configs)
 
 for interface in interfaces:
     helper = dc.CANHelper(interface)
@@ -58,12 +84,24 @@ for interface in interfaces:
 
 group = dc.DamiaoCANGroup(interfaces, True)
 
+for interface, config in bus_configs.items():
+    device = group.get_device(interface)
+    device.init_motors(
+        config["motor_types"],
+        config["send_ids"],
+        config["recv_ids"],
+        config["control_modes"],
+    )
+
+group.enable_all()
 group.flush_rx()
 group.refresh_all()
 results = group.recv_all()
 
 print(results)
 print(results.get(can_id="can0"))
+
+group.disable_all()
 ```
 
 ## Python CLI
@@ -80,6 +118,12 @@ Use the command-specific help for available options and examples:
 python -m damiao_can set-zero --help
 python -m damiao_can set-baudrate --help
 python -m damiao_can drop-test --help
+```
+
+Run a drop test:
+
+```bash
+python -m damiao_can drop-test -i can0 --from 1 --to 8 --wait-us 500
 ```
 
 ## CAN Interface Helper
