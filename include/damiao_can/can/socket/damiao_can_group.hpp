@@ -18,6 +18,7 @@ public:
     explicit DamiaoCANGroupRecvResult(std::vector<DamiaoCANRecvResult> results);
 
     std::size_t size() const noexcept { return results_.size(); }
+    bool ok() const noexcept;
 
     DamiaoCANRecvResult get(std::optional<std::size_t> index = std::nullopt,
                             std::optional<std::string> can_id = std::nullopt) const;

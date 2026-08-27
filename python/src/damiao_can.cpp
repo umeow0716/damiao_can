@@ -515,6 +515,7 @@ NB_MODULE(damiao_can, m) {
         .def("__repr__", &DamiaoCANRecvResult::to_string);
 
     nb::class_<DamiaoCANGroupRecvResult>(m, "DamiaoCANGroupRecvResult")
+        .def_prop_ro("ok", &DamiaoCANGroupRecvResult::ok)
         .def("size", &DamiaoCANGroupRecvResult::size)
         .def(
             "get",

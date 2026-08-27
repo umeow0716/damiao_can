@@ -562,6 +562,10 @@ class DamiaoCANRecvResult:
         ...
 
 class DamiaoCANGroupRecvResult:
+    @property
+    def ok(self) -> bool:
+        ...
+
     def size(self) -> int:
         ...
 
