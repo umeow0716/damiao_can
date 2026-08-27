@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <condition_variable>
 #include <damiao_can/can/socket/damiao_can_group.hpp>
 #include <exception>
@@ -13,6 +14,12 @@ namespace damiao_can::can::socket {
 
 DamiaoCANGroupRecvResult::DamiaoCANGroupRecvResult(std::vector<DamiaoCANRecvResult> results)
     : results_(std::move(results)) {}
+
+bool DamiaoCANGroupRecvResult::ok() const noexcept {
+    return !results_.empty() &&
+           std::all_of(results_.begin(), results_.end(),
+                       [](const DamiaoCANRecvResult& result) { return result.ok; });
+}
 
 DamiaoCANRecvResult DamiaoCANGroupRecvResult::get(std::optional<std::size_t> index,
                                                   std::optional<std::string> can_id) const {
