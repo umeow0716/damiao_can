@@ -16,7 +16,7 @@ If you do not want `CANHelper` to request root authorization through `sudo` when
 
 ```bash
 sudo apt install libpam-cap
-echo "^cap_net_admin ${USER}" | sudo tee -a /etc/security/capability.conf
+sudo sed -i "/^[[:space:]]*none[[:space:]]\+\*[[:space:]]*$/i ^cap_net_admin ${USER}" /etc/security/capability.conf
 sudo pam-auth-update --enable capability
 sudo reboot
 ```
