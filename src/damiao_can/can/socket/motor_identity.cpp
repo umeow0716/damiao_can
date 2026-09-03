@@ -42,6 +42,44 @@ std::vector<MotorType> types_from_limits(const LimitParam& registers) {
     return matches;
 }
 
+std::vector<MotorType> types_from_partial_limits(const MotorIdentityRegisters& registers) {
+    const bool has_pmax = registers.pmax && valid_limit(*registers.pmax);
+    const bool has_vmax = registers.vmax && valid_limit(*registers.vmax);
+    const bool has_tmax = registers.tmax && valid_limit(*registers.tmax);
+    if (!has_pmax && !has_vmax && !has_tmax) {
+        return {};
+    }
+
+    std::vector<MotorType> matches;
+    for (std::size_t i = 0; i < damiao_motor::MOTOR_LIMIT_PARAMS.size(); ++i) {
+        const LimitParam& built_in = damiao_motor::MOTOR_LIMIT_PARAMS[i];
+        if (has_pmax && !nearly_equal(*registers.pmax, built_in.pMax)) continue;
+        if (has_vmax && !nearly_equal(*registers.vmax, built_in.vMax)) continue;
+        if (has_tmax && !nearly_equal(*registers.tmax, built_in.tMax)) continue;
+        matches.push_back(static_cast<MotorType>(i));
+    }
+    return matches;
+}
+
+std::optional<MotorType> canonical_type_from_matches(const std::vector<MotorType>& matches) {
+    if (matches.size() == 1) {
+        return matches.front();
+    }
+
+    const auto contains = [&](MotorType type) {
+        return std::find(matches.begin(), matches.end(), type) != matches.end();
+    };
+
+    // DM4340 and DM4340_48V use the same protocol limits.  For protocol-facing
+    // APIs, DM4340 is the canonical family label; P/non-P variants share it too.
+    if (matches.size() == 2 && contains(MotorType::DM4340) &&
+        contains(MotorType::DM4340_48V)) {
+        return MotorType::DM4340;
+    }
+
+    return std::nullopt;
+}
+
 std::string protocol_family_name(const LimitParam& limits) {
     // Family labels are informational. The register values themselves remain authoritative.
     const auto matches = types_from_limits(limits);
@@ -131,29 +169,52 @@ MotorIdentityResult classify_motor_identity(uint32_t send_can_id,
     }
 
     result.protocol_limits = limits_from_registers(registers);
-    if (!result.protocol_limits) {
-        result.reason = "PMAX/VMAX/TMAX are incomplete or invalid; protocol scaling is unavailable";
+    if (result.protocol_limits) {
+        result.protocol_family = protocol_family_name(*result.protocol_limits);
+        const auto matches = types_from_limits(*result.protocol_limits);
+        const auto canonical_type = canonical_type_from_matches(matches);
+
+        if (canonical_type) {
+            result.motor_type = *canonical_type;
+            result.model_name = motor_type_name(*canonical_type);
+            result.confidence = MotorIdentityConfidence::PROBABLE;
+            result.reason = matches.size() == 1
+                                ? "PMAX/VMAX/TMAX read from motor registers; unique built-in "
+                                  "protocol-limit match"
+                                : "PMAX/VMAX/TMAX read from motor registers; matched a protocol "
+                                  "family with shared limits";
+        } else if (matches.size() > 1) {
+            result.model_name = "UNKNOWN";
+            result.reason =
+                "PMAX/VMAX/TMAX are authoritative for protocol scaling; no unique "
+                "protocol-family label is available because multiple models share these limits";
+        } else {
+            result.model_name = "UNKNOWN";
+            result.reason =
+                "PMAX/VMAX/TMAX are authoritative for protocol scaling; no built-in model label "
+                "matches";
+        }
         return result;
     }
 
-    result.protocol_family = protocol_family_name(*result.protocol_limits);
-    const auto matches = types_from_limits(*result.protocol_limits);
-
-    if (matches.size() == 1) {
-        result.motor_type = matches.front();
-        result.model_name = motor_type_name(matches.front());
+    // Full register-defined scaling is unavailable.  Partial limits may still identify one
+    // built-in protocol family, which allows AUTO initialization to use that family's table.
+    const auto partial_matches = types_from_partial_limits(registers);
+    const auto canonical_type = canonical_type_from_matches(partial_matches);
+    if (canonical_type) {
+        result.motor_type = *canonical_type;
+        result.model_name = motor_type_name(*canonical_type);
+        result.protocol_family =
+            protocol_family_name(damiao_motor::MOTOR_LIMIT_PARAMS[static_cast<std::size_t>(
+                *canonical_type)]);
         result.confidence = MotorIdentityConfidence::PROBABLE;
         result.reason =
-            "PMAX/VMAX/TMAX read from motor registers; unique built-in protocol-limit match";
-    } else if (matches.size() > 1) {
-        result.model_name = result.protocol_family;
-        result.reason =
-            "PMAX/VMAX/TMAX are authoritative for protocol scaling; physical model is ambiguous "
-            "because multiple models share these limits";
+            "PMAX/VMAX/TMAX are incomplete or invalid; remaining readable limit registers "
+            "uniquely identify a built-in protocol family for fallback scaling";
     } else {
-        result.model_name = "UNKNOWN";
         result.reason =
-            "PMAX/VMAX/TMAX are authoritative for protocol scaling; no built-in model label matches";
+            "PMAX/VMAX/TMAX are incomplete or invalid and no unique built-in protocol-family "
+            "fallback can be identified";
     }
 
     return result;

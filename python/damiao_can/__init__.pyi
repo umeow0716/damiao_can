@@ -36,6 +36,7 @@ from damiao_can.damiao_can import PositionSweepResult
 from damiao_can.damiao_can import run_mit_torque_chirp
 from damiao_can.damiao_can import run_position_sinestream
 from damiao_can.damiao_can import Motor
+from damiao_can.damiao_can import MotorLimitResolutionError
 from damiao_can.damiao_can import MotorDeviceCan
 from damiao_can.damiao_can import MotorStateResult
 from damiao_can.damiao_can import MotorType
@@ -90,6 +91,7 @@ __all__: list[str] = [
     "DamiaoCANRecvResult",
     "run_mit_torque_chirp",
     "run_position_sinestream",
+    "MotorLimitResolutionError",
     "CANSocketException",
     "CANHelperException",
 ]

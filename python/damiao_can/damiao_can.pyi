@@ -582,7 +582,8 @@ class DamiaoCAN:
         ...
     def get_motors(self) -> list[Motor]:
         ...
-    def init_motors(self, motor_types: collections.abc.Sequence[MotorType], send_can_ids: collections.abc.Sequence[int], recv_can_ids: collections.abc.Sequence[int], control_modes: collections.abc.Sequence[ControlMode] = ...) -> None:
+    def init_motors(self, send_ids: collections.abc.Sequence[int], recv_ids: collections.abc.Sequence[int], motor_types: collections.abc.Sequence[MotorType | None] | None = ..., control_modes: collections.abc.Sequence[ControlMode] | None = ...) -> None:
+        """Initialize motors; omitted/None motor types use register-based AUTO limits."""
         ...
     def init_motors_with_limits(self, limit_params: collections.abc.Sequence[LimitParam], send_can_ids: collections.abc.Sequence[int], recv_can_ids: collections.abc.Sequence[int], control_modes: collections.abc.Sequence[ControlMode] = ...) -> None:
         ...
@@ -832,3 +833,6 @@ sw_ver: MotorVariable  # value = MotorVariable.sw_ver
 u_off: MotorVariable  # value = MotorVariable.u_off
 v_off: MotorVariable  # value = MotorVariable.v_off
 xout: MotorVariable  # value = MotorVariable.xout
+
+class MotorLimitResolutionError(RuntimeError):
+    ...

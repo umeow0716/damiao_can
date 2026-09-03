@@ -18,6 +18,7 @@
 #include <iosfwd>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -74,6 +75,11 @@ struct DamiaoCANRecvResult {
 
 std::ostream& operator<<(std::ostream& os, const DamiaoCANRecvResult& result);
 
+class MotorLimitResolutionError : public std::runtime_error {
+public:
+    using std::runtime_error::runtime_error;
+};
+
 class DamiaoCAN {
 public:
     DamiaoCAN(const std::string& can_interface, bool enable_fd = false);
@@ -82,10 +88,15 @@ public:
     std::string can_interface() const noexcept { return can_interface_; }
     bool can_fd_enabled() const noexcept { return enable_fd_; }
 
-    void init_motors(const std::vector<damiao_motor::MotorType>& motor_types,
-                     const std::vector<uint32_t>& send_can_ids,
+    void init_motors(const std::vector<uint32_t>& send_can_ids,
                      const std::vector<uint32_t>& recv_can_ids,
+                     const std::vector<damiao_motor::MotorType>& motor_types,
                      const std::vector<damiao_motor::ControlMode>& control_modes = {});
+    void init_motors(
+        const std::vector<uint32_t>& send_can_ids,
+        const std::vector<uint32_t>& recv_can_ids,
+        const std::vector<std::optional<damiao_motor::MotorType>>& motor_types = {},
+        const std::vector<damiao_motor::ControlMode>& control_modes = {});
     void init_motors_with_limits(
         const std::vector<damiao_motor::LimitParam>& limit_params,
         const std::vector<uint32_t>& send_can_ids, const std::vector<uint32_t>& recv_can_ids,

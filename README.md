@@ -41,10 +41,9 @@ helper.set_up()
 device = dc.DamiaoCAN("can0", True)
 
 device.init_motors(
-    [dc.MotorType.DM4310],
     [0x01],  # send_id
     [0x11],  # recv_id
-    [dc.ControlMode.MIT],
+    control_modes=[dc.ControlMode.MIT],
 )
 
 device.enable_all()
@@ -59,18 +58,39 @@ print(result)
 device.disable_all()
 ```
 
+`motor_types` is optional. When it is omitted, `init_motors()` auto-initializes each motor by reading `PMAX`, `VMAX`, and `TMAX` from the motor and uses those values as the protocol limits. If the limits match a known family, the motor gets that canonical `MotorType`; otherwise it remains `MotorType.UNKNOWN` while still using the register-defined limits. If the limits cannot be resolved safely, initialization raises `MotorLimitResolutionError` instead of guessing.
+
+To override auto-detection for a motor, pass `motor_types` explicitly:
+
+```python
+device.init_motors(
+    [0x01],
+    [0x11],
+    motor_types=[dc.MotorType.DM4310],
+    control_modes=[dc.ControlMode.MIT],
+)
+```
+
+A mixed list is also supported, where `None` means auto-detect only that motor:
+
+```python
+device.init_motors(
+    [0x01, 0x02, 0x03],
+    [0x11, 0x12, 0x13],
+    motor_types=[dc.MotorType.DM4310, None, dc.MotorType.DM8009],
+)
+```
+
 For multiple CAN interfaces, configure every interface before creating the group, then initialize the motors on each interface through its `DamiaoCAN` device:
 
 ```python
 bus_configs = {
     "can0": {
-        "motor_types": [dc.MotorType.DM4310],
         "send_ids": [0x01],
         "recv_ids": [0x11],
         "control_modes": [dc.ControlMode.MIT],
     },
     "can1": {
-        "motor_types": [dc.MotorType.DM4310],
         "send_ids": [0x02],
         "recv_ids": [0x12],
         "control_modes": [dc.ControlMode.MIT],
@@ -90,10 +110,9 @@ group = dc.DamiaoCANGroup(interfaces, True)
 for interface, config in bus_configs.items():
     device = group.get_device(interface)
     device.init_motors(
-        config["motor_types"],
         config["send_ids"],
         config["recv_ids"],
-        config["control_modes"],
+        control_modes=config["control_modes"],
     )
 
 group.enable_all()

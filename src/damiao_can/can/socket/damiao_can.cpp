@@ -36,9 +36,9 @@ DamiaoCAN::DamiaoCAN(const std::string& can_interface, bool enable_fd)
     motor_collection_ = std::make_unique<MotorComponent>(*can_socket_);
 }
 
-void DamiaoCAN::init_motors(const std::vector<damiao_motor::MotorType>& motor_types,
-                            const std::vector<uint32_t>& send_can_ids,
+void DamiaoCAN::init_motors(const std::vector<uint32_t>& send_can_ids,
                             const std::vector<uint32_t>& recv_can_ids,
+                            const std::vector<damiao_motor::MotorType>& motor_types,
                             const std::vector<damiao_motor::ControlMode>& control_modes) {
     if (motor_types.size() != send_can_ids.size() || motor_types.size() != recv_can_ids.size()) {
         throw std::invalid_argument(
@@ -50,6 +50,93 @@ void DamiaoCAN::init_motors(const std::vector<damiao_motor::MotorType>& motor_ty
 
     motor_collection_->init_motor_devices(motor_types, send_can_ids, recv_can_ids, enable_fd_,
                                           control_modes);
+    register_motor_collection();
+}
+
+void DamiaoCAN::init_motors(
+    const std::vector<uint32_t>& send_can_ids, const std::vector<uint32_t>& recv_can_ids,
+    const std::vector<std::optional<damiao_motor::MotorType>>& motor_types,
+    const std::vector<damiao_motor::ControlMode>& control_modes) {
+    std::vector<std::optional<damiao_motor::MotorType>> normalized_motor_types = motor_types;
+    if (normalized_motor_types.empty()) {
+        normalized_motor_types.resize(send_can_ids.size(), std::nullopt);
+    }
+
+    if (normalized_motor_types.size() != send_can_ids.size() ||
+        normalized_motor_types.size() != recv_can_ids.size()) {
+        throw std::invalid_argument(
+            "Motor types, send CAN IDs, and receive CAN IDs vectors must have the same size, "
+            "currently: " +
+            std::to_string(normalized_motor_types.size()) + ", " +
+            std::to_string(send_can_ids.size()) + ", " + std::to_string(recv_can_ids.size()));
+    }
+
+    std::vector<damiao_motor::LimitParam> resolved_limits;
+    std::vector<damiao_motor::MotorType> resolved_types;
+    resolved_limits.reserve(normalized_motor_types.size());
+    resolved_types.reserve(normalized_motor_types.size());
+
+    for (std::size_t i = 0; i < normalized_motor_types.size(); ++i) {
+        if (normalized_motor_types[i].has_value()) {
+            const auto type = *normalized_motor_types[i];
+            if (type == damiao_motor::MotorType::UNKNOWN || type == damiao_motor::MotorType::COUNT) {
+                throw std::invalid_argument(
+                    "MotorType::UNKNOWN/COUNT cannot be explicitly initialized; pass None/nullopt "
+                    "for automatic limit discovery");
+            }
+            resolved_types.push_back(type);
+            resolved_limits.push_back(damiao_motor::Motor::get_limit_param(type));
+            continue;
+        }
+
+        MotorIdentityRegisters registers;
+        registers.pmax = probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::PMAX),
+                                     5000);
+        registers.vmax = probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::VMAX),
+                                     5000);
+        registers.tmax = probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::TMAX),
+                                     5000);
+        const auto identity = classify_motor_identity(send_can_ids[i], registers);
+        if (identity.protocol_limits.has_value()) {
+            resolved_limits.push_back(*identity.protocol_limits);
+            resolved_types.push_back(identity.motor_type.value_or(damiao_motor::MotorType::UNKNOWN));
+            continue;
+        }
+
+        if (identity.motor_type.has_value() &&
+            *identity.motor_type != damiao_motor::MotorType::UNKNOWN &&
+            *identity.motor_type != damiao_motor::MotorType::COUNT) {
+            const auto type = *identity.motor_type;
+            resolved_types.push_back(type);
+            resolved_limits.push_back(damiao_motor::Motor::get_limit_param(type));
+            continue;
+        }
+
+        const auto valid_limit = [](const std::optional<double>& value) {
+            return value.has_value() && std::isfinite(*value) && *value > 0.0;
+        };
+        std::vector<std::string> missing;
+        if (!valid_limit(identity.registers.pmax)) missing.emplace_back("PMAX");
+        if (!valid_limit(identity.registers.vmax)) missing.emplace_back("VMAX");
+        if (!valid_limit(identity.registers.tmax)) missing.emplace_back("TMAX");
+
+        std::ostringstream message;
+        message << "Failed to initialize motor 0x" << std::hex << std::uppercase
+                << send_can_ids[i] << std::dec
+                << " automatically: unable to read complete PMAX/VMAX/TMAX limits and no known "
+                   "motor-family fallback is available";
+        if (!missing.empty()) {
+            message << ". Missing/invalid: ";
+            for (std::size_t j = 0; j < missing.size(); ++j) {
+                if (j != 0) message << ", ";
+                message << missing[j];
+            }
+        }
+        throw MotorLimitResolutionError(message.str());
+    }
+
+    motor_collection_->init_motor_devices_resolved(resolved_limits, resolved_types, send_can_ids,
+                                                    recv_can_ids, enable_fd_, control_modes);
     register_motor_collection();
 }
 

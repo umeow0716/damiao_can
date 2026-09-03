@@ -45,6 +45,8 @@ namespace nb = nanobind;
 NB_MODULE(damiao_can, m) {
     m.doc() = "Damiao CAN Python bindings for motor control via SocketCAN";
 
+    nb::exception<MotorLimitResolutionError>(m, "MotorLimitResolutionError", PyExc_RuntimeError);
+
     // ============================================================================
     // DAMIAO MOTOR NAMESPACE - ENUMS AND CONSTANTS
     // ============================================================================
@@ -615,9 +617,30 @@ NB_MODULE(damiao_can, m) {
     nb::class_<DamiaoCAN>(m, "DamiaoCAN")
         .def(nb::init<const std::string&, bool>(), nb::arg("can_interface"),
              nb::arg("enable_fd") = false)
-        .def("init_motors", &DamiaoCAN::init_motors, nb::arg("motor_types"),
-             nb::arg("send_can_ids"), nb::arg("recv_can_ids"),
-             nb::arg("control_modes") = std::vector<ControlMode>{})
+        .def(
+            "init_motors",
+            [](DamiaoCAN& self, const std::vector<uint32_t>& send_ids,
+               const std::vector<uint32_t>& recv_ids, nb::object motor_types,
+               nb::object control_modes) {
+                std::vector<std::optional<MotorType>> normalized_motor_types;
+                if (motor_types.is_none()) {
+                    normalized_motor_types.resize(send_ids.size(), std::nullopt);
+                } else {
+                    normalized_motor_types =
+                        nb::cast<std::vector<std::optional<MotorType>>>(motor_types);
+                }
+
+                std::vector<ControlMode> normalized_control_modes;
+                if (!control_modes.is_none()) {
+                    normalized_control_modes = nb::cast<std::vector<ControlMode>>(control_modes);
+                }
+
+                nb::gil_scoped_release release;
+                self.init_motors(send_ids, recv_ids, normalized_motor_types,
+                                 normalized_control_modes);
+            },
+            nb::arg("send_ids"), nb::arg("recv_ids"), nb::arg("motor_types") = nb::none(),
+            nb::arg("control_modes") = nb::none())
         .def("init_motors_with_limits", &DamiaoCAN::init_motors_with_limits,
              nb::arg("limit_params"), nb::arg("send_can_ids"), nb::arg("recv_can_ids"),
              nb::arg("control_modes") = std::vector<ControlMode>{})

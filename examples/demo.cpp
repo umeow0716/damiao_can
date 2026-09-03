@@ -36,7 +36,7 @@ int main() {
             damiao_can::damiao_motor::MotorType::DM4310};
         std::vector<uint32_t> send_can_ids = {0x01, 0x02};
         std::vector<uint32_t> recv_can_ids = {0x11, 0x12};
-        damiao_can.init_motors(motor_types, send_can_ids, recv_can_ids);
+        damiao_can.init_motors(send_can_ids, recv_can_ids, motor_types);
 
         // Set callback mode to ignore and enable all motors
         damiao_can.set_callback_mode_all(damiao_can::damiao_motor::CallbackMode::IGNORE);

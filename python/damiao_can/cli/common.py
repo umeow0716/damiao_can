@@ -97,7 +97,7 @@ def make_device(api: Any, args: argparse.Namespace, send_ids: Sequence[int]) -> 
     # Motor type is irrelevant for these CLI operations because callbacks are ignored;
     # we only need the send/receive CAN-ID routing provided by DamiaoCAN.
     motor_types = [api.MotorType.DM4310] * len(send_ids)
-    device.init_motors(motor_types, list(send_ids), receive_ids)
+    device.init_motors(list(send_ids), receive_ids, motor_types)
     device.set_callback_mode_all(api.CallbackMode.IGNORE)
     return device
 

@@ -62,9 +62,22 @@ void MotorComponent::init_motor_devices_with_limits(
     const std::vector<damiao_motor::LimitParam>& limit_params,
     const std::vector<canid_t>& send_can_ids, const std::vector<canid_t>& recv_can_ids, bool use_fd,
     const std::vector<damiao_motor::ControlMode>& control_modes) {
-    if (limit_params.size() != send_can_ids.size() || limit_params.size() != recv_can_ids.size()) {
+    std::vector<damiao_motor::MotorType> motor_types(limit_params.size(),
+                                                     damiao_motor::MotorType::UNKNOWN);
+    init_motor_devices_resolved(limit_params, motor_types, send_can_ids, recv_can_ids, use_fd,
+                                control_modes);
+}
+
+void MotorComponent::init_motor_devices_resolved(
+    const std::vector<damiao_motor::LimitParam>& limit_params,
+    const std::vector<damiao_motor::MotorType>& motor_types,
+    const std::vector<canid_t>& send_can_ids, const std::vector<canid_t>& recv_can_ids, bool use_fd,
+    const std::vector<damiao_motor::ControlMode>& control_modes) {
+    if (limit_params.size() != motor_types.size() || limit_params.size() != send_can_ids.size() ||
+        limit_params.size() != recv_can_ids.size()) {
         throw std::invalid_argument(
-            "Limit parameters, send CAN IDs, and receive CAN IDs vectors must have the same size.");
+            "Resolved motor types, limit parameters, send CAN IDs, and receive CAN IDs vectors "
+            "must have the same size.");
     }
     if (!control_modes.empty() && control_modes.size() != 1 &&
         control_modes.size() != limit_params.size()) {
@@ -74,7 +87,7 @@ void MotorComponent::init_motor_devices_with_limits(
 
     motors_.reserve(limit_params.size());
     for (size_t i = 0; i < limit_params.size(); ++i) {
-        motors_.emplace_back(limit_params[i], send_can_ids[i], recv_can_ids[i]);
+        motors_.emplace_back(limit_params[i], send_can_ids[i], recv_can_ids[i], motor_types[i]);
         auto motor_device =
             std::make_shared<damiao_motor::DMCANDevice>(motors_.back(), CAN_SFF_MASK, use_fd);
         get_device_collection().add_device(motor_device);

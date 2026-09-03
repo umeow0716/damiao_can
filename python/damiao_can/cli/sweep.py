@@ -199,9 +199,9 @@ def _make_sweep_device(
         canonical_motor_type = _MOTOR_TYPE_ALIASES.get(args.motor_type, args.motor_type)
         motor_type = getattr(api.MotorType, canonical_motor_type)
         device.init_motors(
-            [motor_type],
             [args.motor_id],
             [args.motor_id + RECV_ID_OFFSET],
+            [motor_type],
             [control_mode],
         )
     device.set_callback_mode_all(callback_mode)

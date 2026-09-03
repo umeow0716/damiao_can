@@ -658,3 +658,28 @@ Flux ≈ 4.345 mWb
 - Stage 4 的 excitation 必須落在實際可辨識的上下界之間。
 - 不重新辨識已由驅動器提供且可信的 Rs/Ls/Flux/NPP/Gr 等項目。
 - 最終目的不是得到一個模糊的「截止頻率」，而是得到 **可用 controller \(\omega\)** 與對應 \(K_p,K_d\)。
+
+## `init_motors` AUTO semantics
+
+`DamiaoCAN.init_motors()` keeps CAN IDs first and makes motor/control metadata optional:
+
+```python
+# all motors automatic
+device.init_motors(send_ids, recv_ids)
+
+# per-motor mix of explicit and automatic limits
+device.init_motors(
+    send_ids,
+    recv_ids,
+    [MotorType.DM4310, None, MotorType.DM8009],
+)
+```
+
+For every `None` entry, initialization reads `PMAX`, `VMAX`, and `TMAX` from the motor and uses
+those register values as the protocol scaling limits.  A known built-in family name is attached when
+the limit fingerprint is recognizable; otherwise the motor type remains `UNKNOWN` while the
+register-defined limits remain fully usable.
+
+If complete positive finite `PMAX/VMAX/TMAX` values cannot be obtained and there is no known
+motor-family fallback, initialization raises `MotorLimitResolutionError`.  It must never silently
+substitute DM4310 or another arbitrary table entry.

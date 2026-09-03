@@ -79,6 +79,7 @@ __all__ = [
     "run_position_sinestream",
 
     # Exceptions
+    "MotorLimitResolutionError",
     "CANSocketException",
     "CANHelperException",
 ]
