@@ -33,7 +33,8 @@ enum class MotorType : uint8_t {
     DMH3510 = 10,
     DMH6215 = 11,
     DMG6220 = 12,
-    COUNT = 13
+    COUNT = 13,
+    UNKNOWN = 255
 };
 
 enum class ControlMode : uint8_t { MIT = 1, POS_VEL = 2, VEL = 3, POS_FORCE = 4 };

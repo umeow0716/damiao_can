@@ -32,15 +32,14 @@ import damiao_can as dc
 #
 # send_ids are motor command CAN IDs.
 # recv_ids are motor feedback CAN IDs.
+# motor_types is omitted so each motor uses register-based AUTO initialization.
 BUS_CONFIGS = {
     "can0": {
-        "motor_types": [dc.MotorType.DM4310],
         "send_ids": [0x01],
         "recv_ids": [0x11],
         "control_modes": [dc.ControlMode.MIT],
     },
     "can1": {
-        "motor_types": [dc.MotorType.DM4310],
         "send_ids": [0x02],
         "recv_ids": [0x12],
         "control_modes": [dc.ControlMode.MIT],
@@ -65,10 +64,9 @@ def main() -> None:
         device = group.get_device(can_interface)
 
         device.init_motors(
-            config["motor_types"],
             config["send_ids"],
             config["recv_ids"],
-            config["control_modes"],
+            control_modes=config["control_modes"],
         )
 
         device.set_callback_mode_all(dc.CallbackMode.STATE)

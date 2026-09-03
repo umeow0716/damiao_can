@@ -29,18 +29,23 @@ __author__ = "Enactic, Inc."
 __all__ = [
     # Enums
     "MotorType",
+    "MotorIdentityConfidence",
     "MotorVariable",
     "CallbackMode",
     "ControlMode",
 
     # Data structures
     "LimitParam",
+    "MotorIdentityRegisters",
+    "MotorIdentityResult",
     "ParamResult",
     "MotorStateResult",
     "CANPacket",
     "CanFrame",
     "CanFdFrame",
     "MITParam",
+    "MITExchangeSample",
+    "PosVelExchangeSample",
     "PosVelParam",
     "VelParam",
     "PosForceParam",
@@ -66,6 +71,7 @@ __all__ = [
     "DamiaoCANGroupRecvResult",
 
     # Exceptions
+    "MotorLimitResolutionError",
     "CANSocketException",
     "CANHelperException",
 ]

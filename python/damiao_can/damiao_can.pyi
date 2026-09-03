@@ -5,7 +5,7 @@ from __future__ import annotations
 import collections.abc
 import enum
 import typing
-__all__: list[str] = ['ACC', 'MotorComponent', 'CANDevice', 'CANDeviceCollection', 'CANPacket', 'CANSocket', 'CANSocketException', 'COUNT', 'CTRL_MODE', 'CallbackMode', 'CanFdFrame', 'CanFrame', 'CanPacketDecoder', 'CanPacketEncoder', 'ControlMode', 'DEC', 'DM10010', 'DM10010L', 'DM3507', 'DM4310', 'DM4310_48V', 'DM4340', 'DM4340_48V', 'DM6006', 'DM8006', 'DM8009', 'DMDeviceCollection', 'DMG6220', 'DMH3510', 'DMH6215', 'Damp', 'Deta', 'ESC_ID', 'Flux', 'GREF', 'Gr', 'IGNORE', 'IQ_c1', 'I_BW', 'Inertia', 'KI_APR', 'KI_ASR', 'KP_APR', 'KP_ASR', 'KT_Value', 'LS', 'LimitParam', 'MAX_SPD', 'MIT', 'MITParam', 'MST_ID', 'Motor', 'MotorDeviceCan', 'MotorStateResult', 'MotorType', 'MotorVariable', 'NPP', 'OC_Value', 'OT_Value', 'OV_Value', 'DamiaoCAN', 'DamiaoCANGroup', 'DamiaoCANGroupRecvResult', 'DamiaoCANRecvResult', 'PARAM', 'PMAX', 'POS_FORCE', 'POS_VEL', 'ParamResult', 'PosForceParam', 'PosVelParam', 'VelParam', 'Rs', 'SN', 'STATE', 'TIMEOUT', 'TMAX', 'UV_Value', 'VEL', 'VL_c1', 'VMAX', 'V_BW', 'can_br', 'dir', 'hw_ver', 'k1', 'k2', 'm_off', 'p_m', 'sub_ver', 'sw_ver', 'u_off', 'v_off', 'xout']
+__all__: list[str] = ['ACC', 'MotorComponent', 'CANDevice', 'CANDeviceCollection', 'CANPacket', 'CANSocket', 'CANSocketException', 'COUNT', 'UNKNOWN', 'CTRL_MODE', 'CallbackMode', 'CanFdFrame', 'CanFrame', 'CanPacketDecoder', 'CanPacketEncoder', 'ControlMode', 'DEC', 'DM10010', 'DM10010L', 'DM3507', 'DM4310', 'DM4310_48V', 'DM4340', 'DM4340_48V', 'DM6006', 'DM8006', 'DM8009', 'DMDeviceCollection', 'DMG6220', 'DMH3510', 'DMH6215', 'Damp', 'Deta', 'ESC_ID', 'Flux', 'GREF', 'Gr', 'IGNORE', 'IQ_c1', 'I_BW', 'Inertia', 'KI_APR', 'KI_ASR', 'KP_APR', 'KP_ASR', 'KT_Value', 'LS', 'LimitParam', 'MAX_SPD', 'MIT', 'MITParam', 'MITExchangeSample', 'PosVelExchangeSample', 'MST_ID', 'Motor', 'MotorDeviceCan', 'MotorStateResult', 'MotorType', 'MotorIdentityConfidence', 'MotorIdentityRegisters', 'MotorIdentityResult', 'MotorVariable', 'NPP', 'OC_Value', 'OT_Value', 'OV_Value', 'DamiaoCAN', 'DamiaoCANGroup', 'DamiaoCANGroupRecvResult', 'DamiaoCANRecvResult', 'PARAM', 'PMAX', 'POS_FORCE', 'POS_VEL', 'ParamResult', 'PosForceParam', 'PosVelParam', 'VelParam', 'Rs', 'SN', 'STATE', 'TIMEOUT', 'TMAX', 'UV_Value', 'VEL', 'VL_c1', 'VMAX', 'V_BW', 'can_br', 'dir', 'hw_ver', 'k1', 'k2', 'm_off', 'p_m', 'sub_ver', 'sw_ver', 'u_off', 'v_off', 'xout']
 class MotorComponent(DMDeviceCollection):
     @staticmethod
     def __new__(type, *args, **kwargs):
@@ -276,8 +276,10 @@ class LimitParam:
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
-    def __init__(self) -> None:
-        ...
+    @typing.overload
+    def __init__(self) -> None: ...
+    @typing.overload
+    def __init__(self, pMax: float, vMax: float, tMax: float) -> None: ...
 class MITParam:
     dq: float
     kd: float
@@ -298,6 +300,35 @@ class MITParam:
     @typing.overload
     def __init__(self, kp: float, kd: float, q: float, dq: float, tau: float) -> None:
         ...
+class MITExchangeSample:
+    tx_timestamp_ns: int
+    rx_timestamp_ns: int
+    command_tau: float
+    position: float
+    velocity: float
+    torque: float
+    t_mos: int
+    t_rotor: int
+    valid: bool
+    def __init__(self) -> None: ...
+    @property
+    def round_trip_ns(self) -> int: ...
+
+class PosVelExchangeSample:
+    tx_timestamp_ns: int
+    rx_timestamp_ns: int
+    command_position: float
+    command_velocity_limit: float
+    position: float
+    velocity: float
+    torque: float
+    t_mos: int
+    t_rotor: int
+    valid: bool
+    def __init__(self) -> None: ...
+    @property
+    def round_trip_ns(self) -> int: ...
+
 class Motor:
     @staticmethod
     def __new__(type, *args, **kwargs):
@@ -307,9 +338,15 @@ class Motor:
     @staticmethod
     def get_limit_param(motor_type: MotorType) -> LimitParam:
         ...
-    def __init__(self, motor_type: MotorType, send_can_id: int, recv_can_id: int) -> None:
-        ...
+    @typing.overload
+    def __init__(self, motor_type: MotorType, send_can_id: int, recv_can_id: int) -> None: ...
+    @typing.overload
+    def __init__(self, limits: LimitParam, send_can_id: int, recv_can_id: int, motor_type: MotorType = ...) -> None: ...
     def get_motor_type(self) -> MotorType:
+        ...
+    def get_limits(self) -> LimitParam:
+        ...
+    def set_limits(self, limits: LimitParam) -> None:
         ...
     def get_param(self, rid: int) -> float:
         ...
@@ -367,6 +404,7 @@ class MotorStateResult:
         ...
 class MotorType(enum.Enum):
     COUNT = ...
+    UNKNOWN = ...
     DM10010 = ...
     DM10010L = ...
     DM3507 = ...
@@ -380,6 +418,38 @@ class MotorType(enum.Enum):
     DMG6220 = ...
     DMH3510 = ...
     DMH6215 = ...
+class MotorIdentityConfidence(enum.Enum):
+    UNKNOWN = ...
+    PROBABLE = ...
+    EXACT = ...
+class MotorIdentityRegisters:
+    hw_ver: int | None
+    sw_ver: int | None
+    sn: int | None
+    npp: int | None
+    sub_ver: int | None
+    rs: float | None
+    ls: float | None
+    flux: float | None
+    gr: float | None
+    pmax: float | None
+    vmax: float | None
+    tmax: float | None
+    def __init__(self) -> None: ...
+class MotorIdentityResult:
+    send_can_id: int
+    responded: bool
+    protocol_limits: LimitParam | None
+    protocol_family: str
+    motor_type: MotorType | None
+    confidence: MotorIdentityConfidence
+    model_name: str
+    reason: str
+    hw_version_ascii: str
+    sw_version_ascii: str
+    serial_ascii: str
+    registers: MotorIdentityRegisters
+    def __init__(self) -> None: ...
 class MotorVariable(enum.Enum):
     ACC = ...
     COUNT = ...
@@ -447,11 +517,20 @@ class DamiaoCAN:
         ...
     def get_motors(self) -> list[Motor]:
         ...
-    def init_motors(self, motor_types: collections.abc.Sequence[MotorType], send_can_ids: collections.abc.Sequence[int], recv_can_ids: collections.abc.Sequence[int], control_modes: collections.abc.Sequence[ControlMode] = ...) -> None:
+    def init_motors(self, send_ids: collections.abc.Sequence[int], recv_ids: collections.abc.Sequence[int], motor_types: collections.abc.Sequence[MotorType | None] | None = ..., control_modes: collections.abc.Sequence[ControlMode] | None = ...) -> None:
+        """Initialize motors; omitted/None motor types use register-based AUTO limits."""
+        ...
+    def init_motors_with_limits(self, limit_params: collections.abc.Sequence[LimitParam], send_can_ids: collections.abc.Sequence[int], recv_can_ids: collections.abc.Sequence[int], control_modes: collections.abc.Sequence[ControlMode] = ...) -> None:
+        ...
+    def set_motor_limits_one(self, index: int, limits: LimitParam) -> None:
         ...
     def mit_control_all(self, mit_params: collections.abc.Sequence[MITParam]) -> None:
         ...
     def mit_control_one(self, index: int, mit_param: MITParam) -> None:
+        ...
+    def exchange_mit(self, index: int, mit_param: MITParam, timeout_us: int = 1000) -> MITExchangeSample:
+        ...
+    def exchange_posvel(self, index: int, posvel_param: PosVelParam, timeout_us: int = 500) -> PosVelExchangeSample:
         ...
     def posforce_control_all(self, posforce_params: collections.abc.Sequence[PosForceParam]) -> None:
         ...
@@ -464,6 +543,8 @@ class DamiaoCAN:
     def query_param_all(self, rid: int) -> None:
         ...
     def query_param_one(self, index: int, rid: int) -> None:
+        ...
+    def probe_motor_identity(self, send_can_id: int, timeout_us: int = 100000) -> MotorIdentityResult:
         ...
     def recv_all(self, timeout_us: int = 500) -> DamiaoCANRecvResult:
         ...
@@ -616,6 +697,7 @@ class DamiaoCANGroup:
 
     def recv_all(self, timeout_us: int = 500) -> DamiaoCANGroupRecvResult:
         ...
+
 ACC: MotorVariable  # value = MotorVariable.ACC
 COUNT: MotorVariable  # value = MotorVariable.COUNT
 CTRL_MODE: MotorVariable  # value = MotorVariable.CTRL_MODE
@@ -682,3 +764,6 @@ sw_ver: MotorVariable  # value = MotorVariable.sw_ver
 u_off: MotorVariable  # value = MotorVariable.u_off
 v_off: MotorVariable  # value = MotorVariable.v_off
 xout: MotorVariable  # value = MotorVariable.xout
+
+class MotorLimitResolutionError(RuntimeError):
+    ...

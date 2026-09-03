@@ -23,12 +23,11 @@ helper.set_up()
 # Create the CAN socket only after the interface is ready.
 device = dc.DamiaoCAN("can0", True)
 
-# Initialize device motors
-motor_types = [dc.MotorType.DM4310]
+# Initialize device motors. motor_types omitted => register-based AUTO.
 send_ids = [0x0A]
 recv_ids = [0x1A]
 control_modes = [dc.ControlMode.VEL]
-device.init_motors(motor_types, send_ids, recv_ids, control_modes)
+device.init_motors(send_ids, recv_ids, control_modes=control_modes)
 
 # Enable motors
 device.enable_all()

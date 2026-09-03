@@ -69,6 +69,7 @@ public:
     // Device collection access
     std::vector<Motor> get_motors() const;
     Motor get_motor(int i) const;
+    void set_limit_param_one(int i, const LimitParam& limit_param);
     canbus::CANDeviceCollection& get_device_collection() { return *device_collection_; }
 
 protected:

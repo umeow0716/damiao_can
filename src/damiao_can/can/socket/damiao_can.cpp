@@ -17,8 +17,12 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstring>
 #include <damiao_can/can/socket/damiao_can.hpp>
 #include <iomanip>
+#include <limits>
+#include <optional>
 #include <ostream>
 #include <set>
 #include <sstream>
@@ -32,9 +36,9 @@ DamiaoCAN::DamiaoCAN(const std::string& can_interface, bool enable_fd)
     motor_collection_ = std::make_unique<MotorComponent>(*can_socket_);
 }
 
-void DamiaoCAN::init_motors(const std::vector<damiao_motor::MotorType>& motor_types,
-                            const std::vector<uint32_t>& send_can_ids,
+void DamiaoCAN::init_motors(const std::vector<uint32_t>& send_can_ids,
                             const std::vector<uint32_t>& recv_can_ids,
+                            const std::vector<damiao_motor::MotorType>& motor_types,
                             const std::vector<damiao_motor::ControlMode>& control_modes) {
     if (motor_types.size() != send_can_ids.size() || motor_types.size() != recv_can_ids.size()) {
         throw std::invalid_argument(
@@ -47,6 +51,112 @@ void DamiaoCAN::init_motors(const std::vector<damiao_motor::MotorType>& motor_ty
     motor_collection_->init_motor_devices(motor_types, send_can_ids, recv_can_ids, enable_fd_,
                                           control_modes);
     register_motor_collection();
+}
+
+void DamiaoCAN::init_motors(const std::vector<uint32_t>& send_can_ids,
+                            const std::vector<uint32_t>& recv_can_ids,
+                            const std::vector<std::optional<damiao_motor::MotorType>>& motor_types,
+                            const std::vector<damiao_motor::ControlMode>& control_modes) {
+    std::vector<std::optional<damiao_motor::MotorType>> normalized_motor_types = motor_types;
+    if (normalized_motor_types.empty()) {
+        normalized_motor_types.resize(send_can_ids.size(), std::nullopt);
+    }
+
+    if (normalized_motor_types.size() != send_can_ids.size() ||
+        normalized_motor_types.size() != recv_can_ids.size()) {
+        throw std::invalid_argument(
+            "Motor types, send CAN IDs, and receive CAN IDs vectors must have the same size, "
+            "currently: " +
+            std::to_string(normalized_motor_types.size()) + ", " +
+            std::to_string(send_can_ids.size()) + ", " + std::to_string(recv_can_ids.size()));
+    }
+
+    std::vector<damiao_motor::LimitParam> resolved_limits;
+    std::vector<damiao_motor::MotorType> resolved_types;
+    resolved_limits.reserve(normalized_motor_types.size());
+    resolved_types.reserve(normalized_motor_types.size());
+
+    for (std::size_t i = 0; i < normalized_motor_types.size(); ++i) {
+        if (normalized_motor_types[i].has_value()) {
+            const auto type = *normalized_motor_types[i];
+            if (type == damiao_motor::MotorType::UNKNOWN ||
+                type == damiao_motor::MotorType::COUNT) {
+                throw std::invalid_argument(
+                    "MotorType::UNKNOWN/COUNT cannot be explicitly initialized; pass None/nullopt "
+                    "for automatic limit discovery");
+            }
+            resolved_types.push_back(type);
+            resolved_limits.push_back(damiao_motor::Motor::get_limit_param(type));
+            continue;
+        }
+
+        MotorIdentityRegisters registers;
+        registers.pmax =
+            probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::PMAX), 100000);
+        registers.vmax =
+            probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::VMAX), 100000);
+        registers.tmax =
+            probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::TMAX), 100000);
+        const auto identity = classify_motor_identity(send_can_ids[i], registers);
+        if (identity.protocol_limits.has_value()) {
+            resolved_limits.push_back(*identity.protocol_limits);
+            resolved_types.push_back(
+                identity.motor_type.value_or(damiao_motor::MotorType::UNKNOWN));
+            continue;
+        }
+
+        if (identity.motor_type.has_value() &&
+            *identity.motor_type != damiao_motor::MotorType::UNKNOWN &&
+            *identity.motor_type != damiao_motor::MotorType::COUNT) {
+            const auto type = *identity.motor_type;
+            resolved_types.push_back(type);
+            resolved_limits.push_back(damiao_motor::Motor::get_limit_param(type));
+            continue;
+        }
+
+        const auto valid_limit = [](const std::optional<double>& value) {
+            return value.has_value() && std::isfinite(*value) && *value > 0.0;
+        };
+        std::vector<std::string> missing;
+        if (!valid_limit(identity.registers.pmax)) missing.emplace_back("PMAX");
+        if (!valid_limit(identity.registers.vmax)) missing.emplace_back("VMAX");
+        if (!valid_limit(identity.registers.tmax)) missing.emplace_back("TMAX");
+
+        std::ostringstream message;
+        message << "Failed to initialize motor 0x" << std::hex << std::uppercase << send_can_ids[i]
+                << std::dec
+                << " automatically: unable to read complete PMAX/VMAX/TMAX limits and no known "
+                   "motor-family fallback is available";
+        if (!missing.empty()) {
+            message << ". Missing/invalid: ";
+            for (std::size_t j = 0; j < missing.size(); ++j) {
+                if (j != 0) message << ", ";
+                message << missing[j];
+            }
+        }
+        throw MotorLimitResolutionError(message.str());
+    }
+
+    motor_collection_->init_motor_devices_resolved(resolved_limits, resolved_types, send_can_ids,
+                                                   recv_can_ids, enable_fd_, control_modes);
+    register_motor_collection();
+}
+
+void DamiaoCAN::init_motors_with_limits(
+    const std::vector<damiao_motor::LimitParam>& limit_params,
+    const std::vector<uint32_t>& send_can_ids, const std::vector<uint32_t>& recv_can_ids,
+    const std::vector<damiao_motor::ControlMode>& control_modes) {
+    if (limit_params.size() != send_can_ids.size() || limit_params.size() != recv_can_ids.size()) {
+        throw std::invalid_argument(
+            "Limit parameters, send CAN IDs, and receive CAN IDs vectors must have the same size");
+    }
+    motor_collection_->init_motor_devices_with_limits(limit_params, send_can_ids, recv_can_ids,
+                                                      enable_fd_, control_modes);
+    register_motor_collection();
+}
+
+void DamiaoCAN::set_motor_limits_one(int i, const damiao_motor::LimitParam& limit_param) {
+    motor_collection_->set_limit_param_one(i, limit_param);
 }
 
 void DamiaoCAN::register_motor_collection() {
@@ -69,6 +179,121 @@ void DamiaoCAN::refresh_one(int i) { motor_collection_->refresh_one(i); }
 void DamiaoCAN::refresh_all() { motor_collection_->refresh_all(); }
 void DamiaoCAN::query_param_one(int i, int RID) { motor_collection_->query_param_one(i, RID); }
 void DamiaoCAN::query_param_all(int RID) { motor_collection_->query_param_all(RID); }
+
+std::optional<double> DamiaoCAN::probe_param(uint32_t send_can_id, int rid, int timeout_us) {
+    using clock = std::chrono::steady_clock;
+    using microseconds = std::chrono::microseconds;
+
+    if (send_can_id > CAN_SFF_MASK) {
+        throw std::invalid_argument("send_can_id must fit in an 11-bit CAN ID");
+    }
+    if (rid < 0 || rid > 0xFF) {
+        throw std::invalid_argument("rid must fit in one byte");
+    }
+    if (timeout_us < 0) {
+        throw std::invalid_argument("timeout_us must be non-negative");
+    }
+
+    // Parameter reads do not require a MotorType.  Flush before the request so a stale
+    // response for the same RID cannot be mistaken for the current probe.
+    flush_rx();
+
+    const auto packet =
+        damiao_motor::CanPacketEncoder::create_query_param_command(send_can_id, rid);
+
+    if (enable_fd_) {
+        canfd_frame frame{};
+        frame.can_id = packet.send_can_id;
+        frame.len = static_cast<__u8>(packet.data.size());
+        frame.flags = CANFD_BRS;
+        std::copy(packet.data.begin(), packet.data.end(), frame.data);
+        can_socket_->write_canfd_frame(frame);
+    } else {
+        can_frame frame{};
+        frame.can_id = packet.send_can_id;
+        frame.can_dlc = static_cast<__u8>(packet.data.size());
+        std::copy(packet.data.begin(), packet.data.end(), frame.data);
+        can_socket_->write_can_frame(frame);
+    }
+
+    const auto deadline = clock::now() + microseconds(timeout_us);
+    while (clock::now() < deadline) {
+        const auto now = clock::now();
+        const int remaining =
+            static_cast<int>(std::chrono::duration_cast<microseconds>(deadline - now).count());
+        if (remaining <= 0 || !can_socket_->is_data_available(remaining)) {
+            break;
+        }
+
+        std::vector<uint8_t> data;
+        bool read_ok = false;
+        if (enable_fd_) {
+            canfd_frame frame{};
+            read_ok = can_socket_->read_canfd_frame(frame);
+            if (read_ok) {
+                data.assign(frame.data, frame.data + frame.len);
+            }
+        } else {
+            can_frame frame{};
+            read_ok = can_socket_->read_can_frame(frame);
+            if (read_ok) {
+                data.assign(frame.data, frame.data + frame.can_dlc);
+            }
+        }
+
+        if (!read_ok || data.size() < 8) {
+            continue;
+        }
+
+        const uint32_t response_slave_id =
+            static_cast<uint32_t>(data[0]) | (static_cast<uint32_t>(data[1]) << 8);
+        if (response_slave_id != send_can_id || data[2] != 0x33 || data[3] != rid) {
+            continue;
+        }
+
+        const auto parsed = damiao_motor::CanPacketDecoder::parse_motor_param_data(data);
+        if (parsed.valid && parsed.rid == rid) {
+            return parsed.value;
+        }
+    }
+
+    return std::nullopt;
+}
+
+MotorIdentityResult DamiaoCAN::probe_motor_identity(uint32_t send_can_id, int timeout_us) {
+    MotorIdentityRegisters registers;
+
+    auto read_u32 = [&](damiao_motor::RID rid) -> std::optional<uint32_t> {
+        const auto value = probe_param(send_can_id, static_cast<int>(rid), timeout_us);
+        if (!value.has_value() || !std::isfinite(*value) || *value < 0.0 ||
+            *value > static_cast<double>(std::numeric_limits<uint32_t>::max())) {
+            return std::nullopt;
+        }
+        return static_cast<uint32_t>(std::llround(*value));
+    };
+    auto read_float = [&](damiao_motor::RID rid) -> std::optional<double> {
+        const auto value = probe_param(send_can_id, static_cast<int>(rid), timeout_us);
+        if (!value.has_value() || !std::isfinite(*value)) {
+            return std::nullopt;
+        }
+        return value;
+    };
+
+    registers.hw_ver = read_u32(damiao_motor::RID::hw_ver);
+    registers.sw_ver = read_u32(damiao_motor::RID::sw_ver);
+    registers.sn = read_u32(damiao_motor::RID::SN);
+    registers.npp = read_u32(damiao_motor::RID::NPP);
+    registers.sub_ver = read_u32(damiao_motor::RID::sub_ver);
+    registers.rs = read_float(damiao_motor::RID::Rs);
+    registers.ls = read_float(damiao_motor::RID::LS);
+    registers.flux = read_float(damiao_motor::RID::Flux);
+    registers.gr = read_float(damiao_motor::RID::Gr);
+    registers.pmax = read_float(damiao_motor::RID::PMAX);
+    registers.vmax = read_float(damiao_motor::RID::VMAX);
+    registers.tmax = read_float(damiao_motor::RID::TMAX);
+
+    return classify_motor_identity(send_can_id, registers);
+}
 void DamiaoCAN::set_callback_mode_all(damiao_motor::CallbackMode callback_mode) {
     motor_collection_->set_callback_mode_all(callback_mode);
 }
@@ -84,6 +309,169 @@ void DamiaoCAN::mit_control_one(int i, const damiao_motor::MITParam& mit_param) 
 void DamiaoCAN::mit_control_all(const std::vector<damiao_motor::MITParam>& mit_params) {
     motor_collection_->mit_control_all(mit_params);
 }
+
+MITExchangeSample DamiaoCAN::exchange_mit(int i, const damiao_motor::MITParam& mit_param,
+                                          int timeout_us) {
+    using clock = std::chrono::steady_clock;
+    using microseconds = std::chrono::microseconds;
+
+    if (timeout_us < 0) {
+        throw std::invalid_argument("timeout_us must be non-negative");
+    }
+
+    const auto motor = motor_collection_->get_motor(i);
+    const canid_t target_recv_id = static_cast<canid_t>(motor.get_recv_can_id());
+
+    MITExchangeSample sample;
+    sample.command_tau = mit_param.tau;
+    sample.position = std::numeric_limits<double>::quiet_NaN();
+    sample.velocity = std::numeric_limits<double>::quiet_NaN();
+    sample.torque = std::numeric_limits<double>::quiet_NaN();
+
+    motor_collection_->mit_control_one(i, mit_param);
+    sample.tx_timestamp_ns = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now().time_since_epoch())
+            .count());
+
+    const auto deadline = clock::now() + microseconds(timeout_us);
+    while (true) {
+        const auto now = clock::now();
+        if (now >= deadline) {
+            break;
+        }
+
+        const int remaining =
+            static_cast<int>(std::chrono::duration_cast<microseconds>(deadline - now).count());
+        if (remaining <= 0 || !can_socket_->is_data_available(remaining)) {
+            break;
+        }
+
+        canid_t response_id = 0;
+        std::vector<uint8_t> data;
+        bool read_ok = false;
+
+        if (enable_fd_) {
+            canfd_frame frame{};
+            read_ok = can_socket_->read_canfd_frame(frame);
+            if (read_ok) {
+                response_id = frame.can_id & CAN_SFF_MASK;
+                data.assign(frame.data, frame.data + frame.len);
+                master_can_device_collection_->dispatch_frame_callback(frame);
+            }
+        } else {
+            can_frame frame{};
+            read_ok = can_socket_->read_can_frame(frame);
+            if (read_ok) {
+                response_id = frame.can_id & CAN_SFF_MASK;
+                data.assign(frame.data, frame.data + frame.can_dlc);
+                master_can_device_collection_->dispatch_frame_callback(frame);
+            }
+        }
+
+        if (!read_ok || response_id != target_recv_id) {
+            continue;
+        }
+
+        const auto state = damiao_motor::CanPacketDecoder::parse_motor_state_data(motor, data);
+        sample.rx_timestamp_ns = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now().time_since_epoch())
+                .count());
+        if (state.valid) {
+            sample.position = state.position;
+            sample.velocity = state.velocity;
+            sample.torque = state.torque;
+            sample.t_mos = state.t_mos;
+            sample.t_rotor = state.t_rotor;
+            sample.valid = true;
+        }
+        break;
+    }
+
+    return sample;
+}
+
+PosVelExchangeSample DamiaoCAN::exchange_posvel(int i,
+                                                const damiao_motor::PosVelParam& posvel_param,
+                                                int timeout_us) {
+    using clock = std::chrono::steady_clock;
+    using microseconds = std::chrono::microseconds;
+
+    if (timeout_us < 0) {
+        throw std::invalid_argument("timeout_us must be non-negative");
+    }
+
+    const auto motor = motor_collection_->get_motor(i);
+    const canid_t target_recv_id = static_cast<canid_t>(motor.get_recv_can_id());
+
+    PosVelExchangeSample sample;
+    sample.command_position = posvel_param.q;
+    sample.command_velocity_limit = posvel_param.dq;
+    sample.position = std::numeric_limits<double>::quiet_NaN();
+    sample.velocity = std::numeric_limits<double>::quiet_NaN();
+    sample.torque = std::numeric_limits<double>::quiet_NaN();
+
+    motor_collection_->posvel_control_one(i, posvel_param);
+    sample.tx_timestamp_ns = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now().time_since_epoch())
+            .count());
+
+    const auto deadline = clock::now() + microseconds(timeout_us);
+    while (true) {
+        const auto now = clock::now();
+        if (now >= deadline) {
+            break;
+        }
+
+        const int remaining =
+            static_cast<int>(std::chrono::duration_cast<microseconds>(deadline - now).count());
+        if (remaining <= 0 || !can_socket_->is_data_available(remaining)) {
+            break;
+        }
+
+        canid_t response_id = 0;
+        std::vector<uint8_t> data;
+        bool read_ok = false;
+
+        if (enable_fd_) {
+            canfd_frame frame{};
+            read_ok = can_socket_->read_canfd_frame(frame);
+            if (read_ok) {
+                response_id = frame.can_id & CAN_SFF_MASK;
+                data.assign(frame.data, frame.data + frame.len);
+                master_can_device_collection_->dispatch_frame_callback(frame);
+            }
+        } else {
+            can_frame frame{};
+            read_ok = can_socket_->read_can_frame(frame);
+            if (read_ok) {
+                response_id = frame.can_id & CAN_SFF_MASK;
+                data.assign(frame.data, frame.data + frame.can_dlc);
+                master_can_device_collection_->dispatch_frame_callback(frame);
+            }
+        }
+
+        if (!read_ok || response_id != target_recv_id) {
+            continue;
+        }
+
+        const auto state = damiao_motor::CanPacketDecoder::parse_motor_state_data(motor, data);
+        sample.rx_timestamp_ns = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now().time_since_epoch())
+                .count());
+        if (state.valid) {
+            sample.position = state.position;
+            sample.velocity = state.velocity;
+            sample.torque = state.torque;
+            sample.t_mos = state.t_mos;
+            sample.t_rotor = state.t_rotor;
+            sample.valid = true;
+        }
+        break;
+    }
+
+    return sample;
+}
+
 void DamiaoCAN::posvel_control_one(int i, const damiao_motor::PosVelParam& posvel_param) {
     motor_collection_->posvel_control_one(i, posvel_param);
 }

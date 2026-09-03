@@ -23,12 +23,11 @@ helper.set_up()
 # Create the CAN socket only after the interface is ready.
 device = dc.DamiaoCAN("can0", True)
 
-# Initialize device motors
-motor_types = [dc.MotorType.DM4310]
+# Initialize device motors. motor_types omitted => register-based AUTO.
 send_ids = [0x0A]
 recv_ids = [0x1A]
 control_modes = [dc.ControlMode.POS_VEL]
-device.init_motors(motor_types, send_ids, recv_ids, control_modes)
+device.init_motors(send_ids, recv_ids, control_modes=control_modes)
 
 # Enable motors
 device.enable_all()
@@ -36,7 +35,7 @@ device.recv_all()
 
 # PosVelParam(q, dq)
 #   q  : target position (rad)
-#   dq : target velocity (rad/s)
+#   dq : maximum absolute trajectory speed / v_des (rad/s)
 device.set_callback_mode_all(dc.CallbackMode.STATE)
 device.posvel_control_all([dc.PosVelParam(0.0, 0.0)])
 device.recv_all()

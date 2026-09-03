@@ -24,6 +24,7 @@
 #include <damiao_can/can/socket/damiao_can.hpp>
 #include <damiao_can/can/socket/damiao_can_group.hpp>
 #include <damiao_can/can/socket/motor_component.hpp>
+#include <damiao_can/can/socket/motor_identity.hpp>
 #include <damiao_can/canbus/can_device.hpp>
 #include <damiao_can/canbus/can_device_collection.hpp>
 #include <damiao_can/canbus/can_helper.hpp>
@@ -42,6 +43,8 @@ namespace nb = nanobind;
 
 NB_MODULE(damiao_can, m) {
     m.doc() = "Damiao CAN Python bindings for motor control via SocketCAN";
+
+    nb::exception<MotorLimitResolutionError>(m, "MotorLimitResolutionError", PyExc_RuntimeError);
 
     // ============================================================================
     // DAMIAO MOTOR NAMESPACE - ENUMS AND CONSTANTS
@@ -63,7 +66,13 @@ NB_MODULE(damiao_can, m) {
         .value("DMH6215", MotorType::DMH6215)
         .value("DMG6220", MotorType::DMG6220)
         .value("COUNT", MotorType::COUNT)
+        .value("UNKNOWN", MotorType::UNKNOWN)
         .export_values();
+
+    nb::enum_<MotorIdentityConfidence>(m, "MotorIdentityConfidence")
+        .value("UNKNOWN", MotorIdentityConfidence::UNKNOWN)
+        .value("PROBABLE", MotorIdentityConfidence::PROBABLE)
+        .value("EXACT", MotorIdentityConfidence::EXACT);
 
     // Motor Variable enum
     nb::enum_<RID>(m, "MotorVariable")
@@ -138,7 +147,13 @@ NB_MODULE(damiao_can, m) {
         .def(nb::init<>())
         .def_rw("pMax", &LimitParam::pMax)
         .def_rw("vMax", &LimitParam::vMax)
-        .def_rw("tMax", &LimitParam::tMax);
+        .def_rw("tMax", &LimitParam::tMax)
+        .def(
+            "__init__",
+            [](LimitParam* limits, double pMax, double vMax, double tMax) {
+                new (limits) LimitParam(LimitParam{pMax, vMax, tMax});
+            },
+            nb::arg("pMax"), nb::arg("vMax"), nb::arg("tMax"));
 
     // ParamResult struct
     nb::class_<ParamResult>(m, "ParamResult")
@@ -219,6 +234,9 @@ NB_MODULE(damiao_can, m) {
     nb::class_<Motor>(m, "Motor")
         .def(nb::init<MotorType, uint32_t, uint32_t>(), nb::arg("motor_type"),
              nb::arg("send_can_id"), nb::arg("recv_can_id"))
+        .def(nb::init<const LimitParam&, uint32_t, uint32_t, MotorType>(), nb::arg("limits"),
+             nb::arg("send_can_id"), nb::arg("recv_can_id"),
+             nb::arg("motor_type") = MotorType::UNKNOWN)
         .def("get_position", &Motor::get_position)
         .def("get_velocity", &Motor::get_velocity)
         .def("get_torque", &Motor::get_torque)
@@ -227,9 +245,12 @@ NB_MODULE(damiao_can, m) {
         .def("get_send_can_id", &Motor::get_send_can_id)
         .def("get_recv_can_id", &Motor::get_recv_can_id)
         .def("get_motor_type", &Motor::get_motor_type)
+        .def("get_limits", [](const Motor& motor) { return motor.get_limit_param(); })
+        .def("set_limits", &Motor::set_limit_param, nb::arg("limits"))
         .def("is_enabled", &Motor::is_enabled)
         .def("get_param", &Motor::get_param, nb::arg("rid"))
-        .def_static("get_limit_param", &Motor::get_limit_param, nb::arg("motor_type"));
+        .def_static("get_limit_param", nb::overload_cast<MotorType>(&Motor::get_limit_param),
+                    nb::arg("motor_type"));
 
     // MotorControl class
     nb::class_<CanPacketEncoder>(m, "CanPacketEncoder")
@@ -251,8 +272,12 @@ NB_MODULE(damiao_can, m) {
         .def_static("create_posforce_control_command",
                     &CanPacketEncoder::create_posforce_control_command, nb::arg("motor"),
                     nb::arg("posforce_param"))
-        .def_static("create_query_param_command", &CanPacketEncoder::create_query_param_command,
-                    nb::arg("motor"), nb::arg("rid"));
+        .def_static(
+            "create_query_param_command",
+            [](const Motor& motor, int rid) {
+                return CanPacketEncoder::create_query_param_command(motor, rid);
+            },
+            nb::arg("motor"), nb::arg("rid"));
 
     nb::class_<CanPacketDecoder>(m, "CanPacketDecoder")
         .def_static("parse_motor_state_data", &CanPacketDecoder::parse_motor_state_data,
@@ -425,6 +450,64 @@ NB_MODULE(damiao_can, m) {
                 std::memcpy(frame.data, data.c_str(), len);
             });
 
+    nb::class_<MotorIdentityRegisters>(m, "MotorIdentityRegisters")
+        .def(nb::init<>())
+        .def_ro("hw_ver", &MotorIdentityRegisters::hw_ver)
+        .def_ro("sw_ver", &MotorIdentityRegisters::sw_ver)
+        .def_ro("sn", &MotorIdentityRegisters::sn)
+        .def_ro("npp", &MotorIdentityRegisters::npp)
+        .def_ro("sub_ver", &MotorIdentityRegisters::sub_ver)
+        .def_ro("rs", &MotorIdentityRegisters::rs)
+        .def_ro("ls", &MotorIdentityRegisters::ls)
+        .def_ro("flux", &MotorIdentityRegisters::flux)
+        .def_ro("gr", &MotorIdentityRegisters::gr)
+        .def_ro("pmax", &MotorIdentityRegisters::pmax)
+        .def_ro("vmax", &MotorIdentityRegisters::vmax)
+        .def_ro("tmax", &MotorIdentityRegisters::tmax);
+
+    nb::class_<MotorIdentityResult>(m, "MotorIdentityResult")
+        .def(nb::init<>())
+        .def_ro("send_can_id", &MotorIdentityResult::send_can_id)
+        .def_ro("responded", &MotorIdentityResult::responded)
+        .def_ro("protocol_limits", &MotorIdentityResult::protocol_limits)
+        .def_ro("protocol_family", &MotorIdentityResult::protocol_family)
+        .def_ro("motor_type", &MotorIdentityResult::motor_type)
+        .def_ro("confidence", &MotorIdentityResult::confidence)
+        .def_ro("model_name", &MotorIdentityResult::model_name)
+        .def_ro("reason", &MotorIdentityResult::reason)
+        .def_ro("hw_version_ascii", &MotorIdentityResult::hw_version_ascii)
+        .def_ro("sw_version_ascii", &MotorIdentityResult::sw_version_ascii)
+        .def_ro("serial_ascii", &MotorIdentityResult::serial_ascii)
+        .def_ro("registers", &MotorIdentityResult::registers);
+
+    // Synchronous command/response samples used by measurement tooling.
+    nb::class_<MITExchangeSample>(m, "MITExchangeSample")
+        .def(nb::init<>())
+        .def_ro("tx_timestamp_ns", &MITExchangeSample::tx_timestamp_ns)
+        .def_ro("rx_timestamp_ns", &MITExchangeSample::rx_timestamp_ns)
+        .def_ro("command_tau", &MITExchangeSample::command_tau)
+        .def_ro("position", &MITExchangeSample::position)
+        .def_ro("velocity", &MITExchangeSample::velocity)
+        .def_ro("torque", &MITExchangeSample::torque)
+        .def_ro("t_mos", &MITExchangeSample::t_mos)
+        .def_ro("t_rotor", &MITExchangeSample::t_rotor)
+        .def_ro("valid", &MITExchangeSample::valid)
+        .def_prop_ro("round_trip_ns", &MITExchangeSample::round_trip_ns);
+
+    nb::class_<PosVelExchangeSample>(m, "PosVelExchangeSample")
+        .def(nb::init<>())
+        .def_ro("tx_timestamp_ns", &PosVelExchangeSample::tx_timestamp_ns)
+        .def_ro("rx_timestamp_ns", &PosVelExchangeSample::rx_timestamp_ns)
+        .def_ro("command_position", &PosVelExchangeSample::command_position)
+        .def_ro("command_velocity_limit", &PosVelExchangeSample::command_velocity_limit)
+        .def_ro("position", &PosVelExchangeSample::position)
+        .def_ro("velocity", &PosVelExchangeSample::velocity)
+        .def_ro("torque", &PosVelExchangeSample::torque)
+        .def_ro("t_mos", &PosVelExchangeSample::t_mos)
+        .def_ro("t_rotor", &PosVelExchangeSample::t_rotor)
+        .def_ro("valid", &PosVelExchangeSample::valid)
+        .def_prop_ro("round_trip_ns", &PosVelExchangeSample::round_trip_ns);
+
     // ============================================================================
     // TOP-LEVEL COMPONENT CLASSES
     // ============================================================================
@@ -471,9 +554,35 @@ NB_MODULE(damiao_can, m) {
     nb::class_<DamiaoCAN>(m, "DamiaoCAN")
         .def(nb::init<const std::string&, bool>(), nb::arg("can_interface"),
              nb::arg("enable_fd") = false)
-        .def("init_motors", &DamiaoCAN::init_motors, nb::arg("motor_types"),
-             nb::arg("send_can_ids"), nb::arg("recv_can_ids"),
+        .def(
+            "init_motors",
+            [](DamiaoCAN& self, const std::vector<uint32_t>& send_ids,
+               const std::vector<uint32_t>& recv_ids, nb::object motor_types,
+               nb::object control_modes) {
+                std::vector<std::optional<MotorType>> normalized_motor_types;
+                if (motor_types.is_none()) {
+                    normalized_motor_types.resize(send_ids.size(), std::nullopt);
+                } else {
+                    normalized_motor_types =
+                        nb::cast<std::vector<std::optional<MotorType>>>(motor_types);
+                }
+
+                std::vector<ControlMode> normalized_control_modes;
+                if (!control_modes.is_none()) {
+                    normalized_control_modes = nb::cast<std::vector<ControlMode>>(control_modes);
+                }
+
+                nb::gil_scoped_release release;
+                self.init_motors(send_ids, recv_ids, normalized_motor_types,
+                                 normalized_control_modes);
+            },
+            nb::arg("send_ids"), nb::arg("recv_ids"), nb::arg("motor_types") = nb::none(),
+            nb::arg("control_modes") = nb::none())
+        .def("init_motors_with_limits", &DamiaoCAN::init_motors_with_limits,
+             nb::arg("limit_params"), nb::arg("send_can_ids"), nb::arg("recv_can_ids"),
              nb::arg("control_modes") = std::vector<ControlMode>{})
+        .def("set_motor_limits_one", &DamiaoCAN::set_motor_limits_one, nb::arg("index"),
+             nb::arg("limits"))
         .def("get_motors", &DamiaoCAN::get_motors)
         .def("get_motor", &DamiaoCAN::get_motor, nb::arg("index"))
         .def("get_master_can_device_collection", &DamiaoCAN::get_master_can_device_collection,
@@ -486,12 +595,19 @@ NB_MODULE(damiao_can, m) {
         .def("refresh_all", &DamiaoCAN::refresh_all)
         .def("query_param_one", &DamiaoCAN::query_param_one, nb::arg("index"), nb::arg("rid"))
         .def("query_param_all", &DamiaoCAN::query_param_all, nb::arg("rid"))
+        .def("probe_motor_identity", &DamiaoCAN::probe_motor_identity, nb::arg("send_can_id"),
+             nb::arg("timeout_us") = 100000, nb::call_guard<nb::gil_scoped_release>())
         .def("set_callback_mode_all", &DamiaoCAN::set_callback_mode_all, nb::arg("callback_mode"))
         .def("set_control_mode_one", &DamiaoCAN::set_control_mode_one, nb::arg("index"),
              nb::arg("mode"))
         .def("set_control_mode_all", &DamiaoCAN::set_control_mode_all, nb::arg("mode"))
         .def("mit_control_one", &DamiaoCAN::mit_control_one, nb::arg("index"), nb::arg("mit_param"))
         .def("mit_control_all", &DamiaoCAN::mit_control_all, nb::arg("mit_params"))
+        .def("exchange_mit", &DamiaoCAN::exchange_mit, nb::arg("index"), nb::arg("mit_param"),
+             nb::arg("timeout_us") = 1000, nb::call_guard<nb::gil_scoped_release>())
+        .def("exchange_posvel", &DamiaoCAN::exchange_posvel, nb::arg("index"),
+             nb::arg("posvel_param"), nb::arg("timeout_us") = 500,
+             nb::call_guard<nb::gil_scoped_release>())
         .def("posvel_control_one", &DamiaoCAN::posvel_control_one, nb::arg("index"),
              nb::arg("posvel_param"))
         .def("posvel_control_all", &DamiaoCAN::posvel_control_all, nb::arg("posvel_params"))

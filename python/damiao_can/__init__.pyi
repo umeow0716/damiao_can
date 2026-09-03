@@ -25,7 +25,10 @@ from damiao_can.damiao_can import ControlMode
 from damiao_can.damiao_can import DMDeviceCollection
 from damiao_can.damiao_can import LimitParam
 from damiao_can.damiao_can import MITParam
+from damiao_can.damiao_can import MITExchangeSample
+from damiao_can.damiao_can import PosVelExchangeSample
 from damiao_can.damiao_can import Motor
+from damiao_can.damiao_can import MotorLimitResolutionError
 from damiao_can.damiao_can import MotorDeviceCan
 from damiao_can.damiao_can import MotorStateResult
 from damiao_can.damiao_can import MotorType
@@ -54,6 +57,8 @@ __all__: list[str] = [
     "CanFrame",
     "CanFdFrame",
     "MITParam",
+    "MITExchangeSample",
+    "PosVelExchangeSample",
     "PosVelParam",
     "VelParam",
     "PosForceParam",
@@ -70,6 +75,7 @@ __all__: list[str] = [
     "DamiaoCANGroup",
     "DamiaoCANGroupRecvResult",
     "DamiaoCANRecvResult",
+    "MotorLimitResolutionError",
     "CANSocketException",
     "CANHelperException",
 ]
@@ -90,6 +96,7 @@ DM8009: MotorType  # value = MotorType.DM8009
 DMG6220: MotorType  # value = MotorType.DMG6220
 DMH3510: MotorType  # value = MotorType.DMH3510
 DMH6215: MotorType  # value = MotorType.DMH6215
+UNKNOWN: MotorType  # value = MotorType.UNKNOWN
 Damp: MotorVariable  # value = MotorVariable.Damp
 Deta: MotorVariable  # value = MotorVariable.Deta
 ESC_ID: MotorVariable  # value = MotorVariable.ESC_ID

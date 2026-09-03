@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
 #include <damiao_can/damiao_motor/dm_motor.hpp>
 #include <damiao_can/damiao_motor/dm_motor_constants.hpp>
 #include <stdexcept>
@@ -24,12 +25,37 @@ Motor::Motor(MotorType motor_type, uint32_t send_can_id, uint32_t recv_can_id)
     : send_can_id_(send_can_id),
       recv_can_id_(recv_can_id),
       motor_type_(motor_type),
+      limit_param_(get_limit_param(motor_type)),
       enabled_(false),
       state_q_(0.0),
       state_dq_(0.0),
       state_tau_(0.0),
       state_tmos_(0),
       state_trotor_(0) {}
+
+Motor::Motor(const LimitParam& limit_param, uint32_t send_can_id, uint32_t recv_can_id,
+             MotorType motor_type)
+    : send_can_id_(send_can_id),
+      recv_can_id_(recv_can_id),
+      motor_type_(motor_type),
+      limit_param_(limit_param),
+      enabled_(false),
+      state_q_(0.0),
+      state_dq_(0.0),
+      state_tau_(0.0),
+      state_tmos_(0),
+      state_trotor_(0) {
+    set_limit_param(limit_param);
+}
+
+void Motor::set_limit_param(const LimitParam& limit_param) {
+    if (!std::isfinite(limit_param.pMax) || !std::isfinite(limit_param.vMax) ||
+        !std::isfinite(limit_param.tMax) || limit_param.pMax <= 0.0 || limit_param.vMax <= 0.0 ||
+        limit_param.tMax <= 0.0) {
+        throw std::invalid_argument("Motor limits must be finite and greater than zero");
+    }
+    limit_param_ = limit_param;
+}
 
 // Enable methods
 void Motor::set_enabled(bool enable) { this->enabled_ = enable; }
