@@ -16,9 +16,9 @@
 #include <linux/can/raw.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
-#include <chrono>
 #include <damiao_can/can/socket/damiao_can.hpp>
 #include <iomanip>
 #include <limits>
@@ -53,10 +53,10 @@ void DamiaoCAN::init_motors(const std::vector<uint32_t>& send_can_ids,
     register_motor_collection();
 }
 
-void DamiaoCAN::init_motors(
-    const std::vector<uint32_t>& send_can_ids, const std::vector<uint32_t>& recv_can_ids,
-    const std::vector<std::optional<damiao_motor::MotorType>>& motor_types,
-    const std::vector<damiao_motor::ControlMode>& control_modes) {
+void DamiaoCAN::init_motors(const std::vector<uint32_t>& send_can_ids,
+                            const std::vector<uint32_t>& recv_can_ids,
+                            const std::vector<std::optional<damiao_motor::MotorType>>& motor_types,
+                            const std::vector<damiao_motor::ControlMode>& control_modes) {
     std::vector<std::optional<damiao_motor::MotorType>> normalized_motor_types = motor_types;
     if (normalized_motor_types.empty()) {
         normalized_motor_types.resize(send_can_ids.size(), std::nullopt);
@@ -79,7 +79,8 @@ void DamiaoCAN::init_motors(
     for (std::size_t i = 0; i < normalized_motor_types.size(); ++i) {
         if (normalized_motor_types[i].has_value()) {
             const auto type = *normalized_motor_types[i];
-            if (type == damiao_motor::MotorType::UNKNOWN || type == damiao_motor::MotorType::COUNT) {
+            if (type == damiao_motor::MotorType::UNKNOWN ||
+                type == damiao_motor::MotorType::COUNT) {
                 throw std::invalid_argument(
                     "MotorType::UNKNOWN/COUNT cannot be explicitly initialized; pass None/nullopt "
                     "for automatic limit discovery");
@@ -90,16 +91,17 @@ void DamiaoCAN::init_motors(
         }
 
         MotorIdentityRegisters registers;
-        registers.pmax = probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::PMAX),
-                                     100000);
-        registers.vmax = probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::VMAX),
-                                     100000);
-        registers.tmax = probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::TMAX),
-                                     100000);
+        registers.pmax =
+            probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::PMAX), 100000);
+        registers.vmax =
+            probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::VMAX), 100000);
+        registers.tmax =
+            probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::TMAX), 100000);
         const auto identity = classify_motor_identity(send_can_ids[i], registers);
         if (identity.protocol_limits.has_value()) {
             resolved_limits.push_back(*identity.protocol_limits);
-            resolved_types.push_back(identity.motor_type.value_or(damiao_motor::MotorType::UNKNOWN));
+            resolved_types.push_back(
+                identity.motor_type.value_or(damiao_motor::MotorType::UNKNOWN));
             continue;
         }
 
@@ -121,8 +123,8 @@ void DamiaoCAN::init_motors(
         if (!valid_limit(identity.registers.tmax)) missing.emplace_back("TMAX");
 
         std::ostringstream message;
-        message << "Failed to initialize motor 0x" << std::hex << std::uppercase
-                << send_can_ids[i] << std::dec
+        message << "Failed to initialize motor 0x" << std::hex << std::uppercase << send_can_ids[i]
+                << std::dec
                 << " automatically: unable to read complete PMAX/VMAX/TMAX limits and no known "
                    "motor-family fallback is available";
         if (!missing.empty()) {
@@ -136,7 +138,7 @@ void DamiaoCAN::init_motors(
     }
 
     motor_collection_->init_motor_devices_resolved(resolved_limits, resolved_types, send_can_ids,
-                                                    recv_can_ids, enable_fd_, control_modes);
+                                                   recv_can_ids, enable_fd_, control_modes);
     register_motor_collection();
 }
 
@@ -149,7 +151,7 @@ void DamiaoCAN::init_motors_with_limits(
             "Limit parameters, send CAN IDs, and receive CAN IDs vectors must have the same size");
     }
     motor_collection_->init_motor_devices_with_limits(limit_params, send_can_ids, recv_can_ids,
-                                                       enable_fd_, control_modes);
+                                                      enable_fd_, control_modes);
     register_motor_collection();
 }
 
@@ -217,8 +219,8 @@ std::optional<double> DamiaoCAN::probe_param(uint32_t send_can_id, int rid, int 
     const auto deadline = clock::now() + microseconds(timeout_us);
     while (clock::now() < deadline) {
         const auto now = clock::now();
-        const int remaining = static_cast<int>(
-            std::chrono::duration_cast<microseconds>(deadline - now).count());
+        const int remaining =
+            static_cast<int>(std::chrono::duration_cast<microseconds>(deadline - now).count());
         if (remaining <= 0 || !can_socket_->is_data_available(remaining)) {
             break;
         }
@@ -338,8 +340,8 @@ MITExchangeSample DamiaoCAN::exchange_mit(int i, const damiao_motor::MITParam& m
             break;
         }
 
-        const int remaining = static_cast<int>(
-            std::chrono::duration_cast<microseconds>(deadline - now).count());
+        const int remaining =
+            static_cast<int>(std::chrono::duration_cast<microseconds>(deadline - now).count());
         if (remaining <= 0 || !can_socket_->is_data_available(remaining)) {
             break;
         }
@@ -388,8 +390,9 @@ MITExchangeSample DamiaoCAN::exchange_mit(int i, const damiao_motor::MITParam& m
     return sample;
 }
 
-PosVelExchangeSample DamiaoCAN::exchange_posvel(
-    int i, const damiao_motor::PosVelParam& posvel_param, int timeout_us) {
+PosVelExchangeSample DamiaoCAN::exchange_posvel(int i,
+                                                const damiao_motor::PosVelParam& posvel_param,
+                                                int timeout_us) {
     using clock = std::chrono::steady_clock;
     using microseconds = std::chrono::microseconds;
 
@@ -419,8 +422,8 @@ PosVelExchangeSample DamiaoCAN::exchange_posvel(
             break;
         }
 
-        const int remaining = static_cast<int>(
-            std::chrono::duration_cast<microseconds>(deadline - now).count());
+        const int remaining =
+            static_cast<int>(std::chrono::duration_cast<microseconds>(deadline - now).count());
         if (remaining <= 0 || !can_socket_->is_data_available(remaining)) {
             break;
         }

@@ -29,7 +29,6 @@
 
 namespace damiao_can::can::socket {
 
-
 struct MITExchangeSample {
     uint64_t tx_timestamp_ns = 0;
     uint64_t rx_timestamp_ns = 0;
@@ -92,15 +91,14 @@ public:
                      const std::vector<uint32_t>& recv_can_ids,
                      const std::vector<damiao_motor::MotorType>& motor_types,
                      const std::vector<damiao_motor::ControlMode>& control_modes = {});
-    void init_motors(
-        const std::vector<uint32_t>& send_can_ids,
-        const std::vector<uint32_t>& recv_can_ids,
-        const std::vector<std::optional<damiao_motor::MotorType>>& motor_types = {},
-        const std::vector<damiao_motor::ControlMode>& control_modes = {});
-    void init_motors_with_limits(
-        const std::vector<damiao_motor::LimitParam>& limit_params,
-        const std::vector<uint32_t>& send_can_ids, const std::vector<uint32_t>& recv_can_ids,
-        const std::vector<damiao_motor::ControlMode>& control_modes = {});
+    void init_motors(const std::vector<uint32_t>& send_can_ids,
+                     const std::vector<uint32_t>& recv_can_ids,
+                     const std::vector<std::optional<damiao_motor::MotorType>>& motor_types = {},
+                     const std::vector<damiao_motor::ControlMode>& control_modes = {});
+    void init_motors_with_limits(const std::vector<damiao_motor::LimitParam>& limit_params,
+                                 const std::vector<uint32_t>& send_can_ids,
+                                 const std::vector<uint32_t>& recv_can_ids,
+                                 const std::vector<damiao_motor::ControlMode>& control_modes = {});
     void set_motor_limits_one(int i, const damiao_motor::LimitParam& limit_param);
 
     std::vector<damiao_motor::Motor> get_motors() const;

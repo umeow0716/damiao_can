@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
 #include <damiao_can/damiao_motor/dm_motor.hpp>
 #include <damiao_can/damiao_motor/dm_motor_constants.hpp>
-#include <cmath>
 #include <stdexcept>
 #include <string>
 
@@ -32,7 +32,6 @@ Motor::Motor(MotorType motor_type, uint32_t send_can_id, uint32_t recv_can_id)
       state_tau_(0.0),
       state_tmos_(0),
       state_trotor_(0) {}
-
 
 Motor::Motor(const LimitParam& limit_param, uint32_t send_can_id, uint32_t recv_can_id,
              MotorType motor_type)

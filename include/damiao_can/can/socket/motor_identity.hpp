@@ -57,6 +57,6 @@ struct MotorIdentityResult {
 std::string decode_u32_ascii(uint32_t value);
 std::string motor_type_name(damiao_motor::MotorType motor_type);
 MotorIdentityResult classify_motor_identity(uint32_t send_can_id,
-                                             const MotorIdentityRegisters& registers);
+                                            const MotorIdentityRegisters& registers);
 
 }  // namespace damiao_can::can::socket

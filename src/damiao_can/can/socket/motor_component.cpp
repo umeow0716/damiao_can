@@ -57,7 +57,6 @@ void MotorComponent::init_motor_devices(
     }
 }
 
-
 void MotorComponent::init_motor_devices_with_limits(
     const std::vector<damiao_motor::LimitParam>& limit_params,
     const std::vector<canid_t>& send_can_ids, const std::vector<canid_t>& recv_can_ids, bool use_fd,

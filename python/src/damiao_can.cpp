@@ -249,8 +249,7 @@ NB_MODULE(damiao_can, m) {
         .def("set_limits", &Motor::set_limit_param, nb::arg("limits"))
         .def("is_enabled", &Motor::is_enabled)
         .def("get_param", &Motor::get_param, nb::arg("rid"))
-        .def_static("get_limit_param",
-                    nb::overload_cast<MotorType>(&Motor::get_limit_param),
+        .def_static("get_limit_param", nb::overload_cast<MotorType>(&Motor::get_limit_param),
                     nb::arg("motor_type"));
 
     // MotorControl class

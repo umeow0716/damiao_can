@@ -72,8 +72,7 @@ std::optional<MotorType> canonical_type_from_matches(const std::vector<MotorType
 
     // DM4340 and DM4340_48V use the same protocol limits.  For protocol-facing
     // APIs, DM4340 is the canonical family label; P/non-P variants share it too.
-    if (matches.size() == 2 && contains(MotorType::DM4340) &&
-        contains(MotorType::DM4340_48V)) {
+    if (matches.size() == 2 && contains(MotorType::DM4340) && contains(MotorType::DM4340_48V)) {
         return MotorType::DM4340;
     }
 
@@ -133,27 +132,41 @@ std::string decode_u32_ascii(uint32_t value) {
 
 std::string motor_type_name(MotorType motor_type) {
     switch (motor_type) {
-        case MotorType::DM3507: return "DM3507";
-        case MotorType::DM4310: return "DM4310";
-        case MotorType::DM4310_48V: return "DM4310_48V";
-        case MotorType::DM4340: return "DM4340";
-        case MotorType::DM4340_48V: return "DM4340_48V";
-        case MotorType::DM6006: return "DM6006";
-        case MotorType::DM8006: return "DM8006";
-        case MotorType::DM8009: return "DM8009";
-        case MotorType::DM10010L: return "DM10010L";
-        case MotorType::DM10010: return "DM10010";
-        case MotorType::DMH3510: return "DMH3510";
-        case MotorType::DMH6215: return "DMH6215";
-        case MotorType::DMG6220: return "DMG6220";
+        case MotorType::DM3507:
+            return "DM3507";
+        case MotorType::DM4310:
+            return "DM4310";
+        case MotorType::DM4310_48V:
+            return "DM4310_48V";
+        case MotorType::DM4340:
+            return "DM4340";
+        case MotorType::DM4340_48V:
+            return "DM4340_48V";
+        case MotorType::DM6006:
+            return "DM6006";
+        case MotorType::DM8006:
+            return "DM8006";
+        case MotorType::DM8009:
+            return "DM8009";
+        case MotorType::DM10010L:
+            return "DM10010L";
+        case MotorType::DM10010:
+            return "DM10010";
+        case MotorType::DMH3510:
+            return "DMH3510";
+        case MotorType::DMH6215:
+            return "DMH6215";
+        case MotorType::DMG6220:
+            return "DMG6220";
         case MotorType::COUNT:
-        case MotorType::UNKNOWN: break;
+        case MotorType::UNKNOWN:
+            break;
     }
     return "UNKNOWN";
 }
 
 MotorIdentityResult classify_motor_identity(uint32_t send_can_id,
-                                             const MotorIdentityRegisters& registers) {
+                                            const MotorIdentityRegisters& registers) {
     MotorIdentityResult result;
     result.send_can_id = send_can_id;
     result.registers = registers;
@@ -204,9 +217,8 @@ MotorIdentityResult classify_motor_identity(uint32_t send_can_id,
     if (canonical_type) {
         result.motor_type = *canonical_type;
         result.model_name = motor_type_name(*canonical_type);
-        result.protocol_family =
-            protocol_family_name(damiao_motor::MOTOR_LIMIT_PARAMS[static_cast<std::size_t>(
-                *canonical_type)]);
+        result.protocol_family = protocol_family_name(
+            damiao_motor::MOTOR_LIMIT_PARAMS[static_cast<std::size_t>(*canonical_type)]);
         result.confidence = MotorIdentityConfidence::PROBABLE;
         result.reason =
             "PMAX/VMAX/TMAX are incomplete or invalid; remaining readable limit registers "

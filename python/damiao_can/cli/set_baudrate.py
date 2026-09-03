@@ -57,7 +57,8 @@ def _change_motor_baudrate(api: Any, socket: Any, send_id: int, baudrate: int) -
             ]
         ),
     )
-    _write_frame(socket, write, f"write baudrate for motor {format_id(send_id)}")
+    _write_frame(
+        socket, write, f"write baudrate for motor {format_id(send_id)}")
     time.sleep(0.020)
 
     disable = _make_can_frame(api, send_id, bytes([0xFF] * 7 + [0xFD]))

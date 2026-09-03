@@ -41,13 +41,15 @@ def parse_rate(value: str) -> int:
         try:
             number = float(text[:-1])
         except ValueError as exc:
-            raise argparse.ArgumentTypeError(f"invalid bitrate {value!r}") from exc
+            raise argparse.ArgumentTypeError(
+                f"invalid bitrate {value!r}") from exc
         result = int(number * multipliers[text[-1]])
     else:
         try:
             result = int(text, 0)
         except ValueError as exc:
-            raise argparse.ArgumentTypeError(f"invalid bitrate {value!r}") from exc
+            raise argparse.ArgumentTypeError(
+                f"invalid bitrate {value!r}") from exc
 
     if result <= 0:
         raise argparse.ArgumentTypeError("bitrate must be greater than zero")

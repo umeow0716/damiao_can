@@ -150,7 +150,8 @@ def _positive_float(value: str) -> float:
     except ValueError as exc:
         raise argparse.ArgumentTypeError(f"invalid number {value!r}") from exc
     if not math.isfinite(result) or result <= 0.0:
-        raise argparse.ArgumentTypeError("value must be finite and greater than zero")
+        raise argparse.ArgumentTypeError(
+            "value must be finite and greater than zero")
     return result
 
 
@@ -160,7 +161,8 @@ def _nonnegative_float(value: str) -> float:
     except ValueError as exc:
         raise argparse.ArgumentTypeError(f"invalid number {value!r}") from exc
     if not math.isfinite(result) or result < 0.0:
-        raise argparse.ArgumentTypeError("value must be finite and non-negative")
+        raise argparse.ArgumentTypeError(
+            "value must be finite and non-negative")
     return result
 
 
@@ -202,13 +204,15 @@ def _float_list(value: str) -> list[float]:
             continue
         items.append(_finite_float(token))
     if not items:
-        raise argparse.ArgumentTypeError("provide at least one comma-separated value")
+        raise argparse.ArgumentTypeError(
+            "provide at least one comma-separated value")
     return items
 
 
 def _validate_motor_id(motor_id: int) -> None:
     if motor_id < 0 or motor_id + RECV_ID_OFFSET > 0x7FF:
-        raise ValueError("--id must fit an 11-bit CAN ID with recv_id = id + 0x10")
+        raise ValueError(
+            "--id must fit an 11-bit CAN ID with recv_id = id + 0x10")
 
 
 def _add_interface_options(parser: argparse.ArgumentParser) -> None:
@@ -341,7 +345,8 @@ def _make_device(api: Any, args: argparse.Namespace, control_mode: Any, callback
     recv_id = args.motor_id + RECV_ID_OFFSET
 
     if args.motor_type == "auto":
-        identity = device.probe_motor_identity(args.motor_id, args.parameter_timeout_us)
+        identity = device.probe_motor_identity(
+            args.motor_id, args.parameter_timeout_us)
         if not identity.responded:
             raise ValueError(
                 "motor auto-detection got no register response; pass --motor-type to override"
@@ -545,7 +550,8 @@ def _linear_fit(xs: Sequence[float], ys: Sequence[float]) -> tuple[float, float]
     denominator = sum((x - x_mean) ** 2 for x in xs)
     if denominator <= 0.0:
         raise ValueError("linear fit requires distinct x values")
-    slope = sum((x - x_mean) * (y - y_mean) for x, y in zip(xs, ys)) / denominator
+    slope = sum((x - x_mean) * (y - y_mean)
+                for x, y in zip(xs, ys)) / denominator
     intercept = y_mean - slope * x_mean
     return intercept, slope
 
@@ -559,16 +565,19 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def _stage1(args: argparse.Namespace) -> int:
     if len(args.velocity_fractions) < 2 or len(set(args.velocity_fractions)) < 2:
-        raise ValueError("--velocity-fractions needs at least two distinct values")
+        raise ValueError(
+            "--velocity-fractions needs at least two distinct values")
     if any(f <= 0.0 or f > 1.0 for f in args.velocity_fractions):
         raise ValueError("--velocity-fractions values must be in (0, 1]")
     if max(args.velocity_fractions) * args.test_velocity_rad_s >= args.max_velocity_rad_s:
-        raise ValueError("largest Stage 1 velocity target must be below --max-velocity-rad-s")
+        raise ValueError(
+            "largest Stage 1 velocity target must be below --max-velocity-rad-s")
 
     from .common import load_api
 
     api = load_api()
-    device = _make_device(api, args, api.ControlMode.VEL, api.CallbackMode.STATE)
+    device = _make_device(api, args, api.ControlMode.VEL,
+                          api.CallbackMode.STATE)
     limits = device.get_motor(0).get_limits()
     if args.test_velocity_rad_s > limits.vMax:
         raise ValueError(
@@ -658,7 +667,8 @@ def _stage1(args: argparse.Namespace) -> int:
             torques = [sample.torque_nm for sample in valid]
             torque_mean = statistics.fmean(torques)
             torque_variance = statistics.pvariance(torques)
-            torque_rms = math.sqrt(statistics.fmean(tau * tau for tau in torques))
+            torque_rms = math.sqrt(statistics.fmean(
+                tau * tau for tau in torques))
             point_rows.append(
                 {
                     "target_velocity_rad_s": target,
@@ -712,7 +722,8 @@ def _stage1(args: argparse.Namespace) -> int:
         for row in point_rows
     }
     noise_residuals = [
-        float(row["feedback_torque_nm"]) - by_target_mean[float(row["target_velocity_rad_s"])]
+        float(row["feedback_torque_nm"]) -
+        by_target_mean[float(row["target_velocity_rad_s"])]
         for row in raw_rows
         if row["valid"]
     ]
@@ -765,9 +776,11 @@ def _stage2_direction(
 ) -> dict[str, float]:
     dt = 1.0 / args.sample_rate_hz
     zero_start = time.monotonic()
-    zero_count = max(1, int(math.ceil(args.zero_settle_s * args.sample_rate_hz)))
+    zero_count = max(
+        1, int(math.ceil(args.zero_settle_s * args.sample_rate_hz)))
     last_zero_velocity: float | None = None
-    zero_response_guard = _ResponseGuard(safety.max_consecutive_response_misses)
+    zero_response_guard = _ResponseGuard(
+        safety.max_consecutive_response_misses)
     for index in range(zero_count):
         _sleep_until(zero_start + index * dt)
         feedback = device.exchange_mit(
@@ -775,7 +788,8 @@ def _stage2_direction(
             api.MITParam(0.0, 0.0, 0.0, 0.0, 0.0),
             args.response_timeout_us,
         )
-        zero_response_guard.observe(feedback.valid, "breakaway zero-torque settle")
+        zero_response_guard.observe(
+            feedback.valid, "breakaway zero-torque settle")
         if feedback.valid:
             last_zero_velocity = float(feedback.velocity)
             _check_safety(
@@ -844,7 +858,8 @@ def _stage2_direction(
                 onset_candidate = None
             if consecutive >= args.consecutive_samples:
                 if onset_candidate is None:
-                    raise RuntimeError("internal breakaway onset tracking error")
+                    raise RuntimeError(
+                        "internal breakaway onset tracking error")
                 return onset_candidate
 
         if magnitude >= args.max_torque_nm:
@@ -859,7 +874,8 @@ def _stage2(args: argparse.Namespace) -> int:
     from .common import load_api
 
     api = load_api()
-    device = _make_device(api, args, api.ControlMode.MIT, api.CallbackMode.IGNORE)
+    device = _make_device(api, args, api.ControlMode.MIT,
+                          api.CallbackMode.IGNORE)
     limits = device.get_motor(0).get_limits()
     if args.max_torque_nm >= limits.tMax:
         raise ValueError(
@@ -900,7 +916,8 @@ def _stage2(args: argparse.Namespace) -> int:
         positive = _stage2_direction(api, device, args, 1, safety, start, rows)
         _mit_zero(api, device)
         time.sleep(args.zero_settle_s)
-        negative = _stage2_direction(api, device, args, -1, safety, start, rows)
+        negative = _stage2_direction(
+            api, device, args, -1, safety, start, rows)
     finally:
         if enabled:
             try:
@@ -938,7 +955,8 @@ def _stage2(args: argparse.Namespace) -> int:
 
 
 def _mean_valid(samples: Iterable[_StateSample], attr: str) -> float:
-    values = [float(getattr(sample, attr)) for sample in samples if sample.valid]
+    values = [float(getattr(sample, attr))
+              for sample in samples if sample.valid]
     if not values:
         raise RuntimeError("no valid samples available")
     return statistics.fmean(values)
@@ -950,19 +968,22 @@ def _stage3(args: argparse.Namespace) -> int:
     if not (0.0 < args.safety_margin <= 1.0):
         raise ValueError("--safety-margin must be in (0, 1]")
     if any(abs(v) >= args.max_velocity_rad_s for v in args.velocities_rad_s):
-        raise ValueError("every --velocities-rad-s value must be below --max-velocity-rad-s")
+        raise ValueError(
+            "every --velocities-rad-s value must be below --max-velocity-rad-s")
 
     from .common import load_api
 
     api = load_api()
-    device = _make_device(api, args, api.ControlMode.VEL, api.CallbackMode.STATE)
+    device = _make_device(api, args, api.ControlMode.VEL,
+                          api.CallbackMode.STATE)
     limits = device.get_motor(0).get_limits()
     if args.max_perturbation_nm >= limits.tMax:
         raise ValueError(
             f"--max-perturbation-nm must be below protocol TMAX {limits.tMax:g}"
         )
     if any(abs(v) > limits.vMax for v in args.velocities_rad_s):
-        raise ValueError(f"an operating velocity exceeds protocol VMAX {limits.vMax:g}")
+        raise ValueError(
+            f"an operating velocity exceeds protocol VMAX {limits.vMax:g}")
 
     initial = _fresh_state(device, args.response_timeout_us)
     safety = _safety_from_args(args, initial.position_rad)
@@ -1039,7 +1060,8 @@ def _stage3(args: argparse.Namespace) -> int:
                     device.flush_rx()
                     pulse_start = time.monotonic()
                     dt = 1.0 / args.sample_rate_hz
-                    count = max(1, int(math.ceil(args.pulse_s * args.sample_rate_hz)))
+                    count = max(
+                        1, int(math.ceil(args.pulse_s * args.sample_rate_hz)))
                     pulse_feedback: list[float] = []
                     valid_count = 0
                     response_guard = _ResponseGuard(
@@ -1101,7 +1123,8 @@ def _stage3(args: argparse.Namespace) -> int:
                             f"no valid MIT feedback at {velocity:g} rad/s, "
                             f"perturbation {amplitude:g} Nm"
                         )
-                    measured_delta = statistics.fmean(pulse_feedback) - baseline_torque
+                    measured_delta = statistics.fmean(
+                        pulse_feedback) - baseline_torque
                     tracking_ratio = abs(measured_delta) / amplitude
                     linear = tracking_ratio >= args.tracking_ratio_min
                     if linear:
@@ -1197,7 +1220,8 @@ def _stage3(args: argparse.Namespace) -> int:
 def _solve_3x3(matrix: list[list[float]], vector: list[float]) -> tuple[float, float, float]:
     augmented = [row[:] + [value] for row, value in zip(matrix, vector)]
     for column in range(3):
-        pivot = max(range(column, 3), key=lambda row: abs(augmented[row][column]))
+        pivot = max(range(column, 3), key=lambda row: abs(
+            augmented[row][column]))
         if abs(augmented[pivot][column]) < 1e-15:
             raise ValueError("singular sinusoid-fit matrix")
         augmented[column], augmented[pivot] = augmented[pivot], augmented[column]
@@ -1220,8 +1244,10 @@ def _fit_sinusoid(phases: Sequence[float], values: Sequence[float]) -> _FitResul
     cosines = [math.cos(phase) for phase in phases]
     n = float(len(values))
     matrix = [
-        [sum(s * s for s in sines), sum(s * c for s, c in zip(sines, cosines)), sum(sines)],
-        [sum(s * c for s, c in zip(sines, cosines)), sum(c * c for c in cosines), sum(cosines)],
+        [sum(s * s for s in sines), sum(s * c for s,
+                                        c in zip(sines, cosines)), sum(sines)],
+        [sum(s * c for s, c in zip(sines, cosines)),
+         sum(c * c for c in cosines), sum(cosines)],
         [sum(sines), sum(cosines), n],
     ]
     vector = [
@@ -1281,7 +1307,8 @@ def _stage4(args: argparse.Namespace) -> int:
     from .common import load_api
 
     api = load_api()
-    device = _make_device(api, args, api.ControlMode.MIT, api.CallbackMode.IGNORE)
+    device = _make_device(api, args, api.ControlMode.MIT,
+                          api.CallbackMode.IGNORE)
     limits = device.get_motor(0).get_limits()
     if abs(args.bias_nm) + args.amplitude_nm >= limits.tMax:
         raise ValueError(
@@ -1337,18 +1364,21 @@ def _stage4(args: argparse.Namespace) -> int:
             point_duration = total_cycles / frequency
             measure_start = args.settling_cycles / frequency
             dt = 1.0 / args.sample_rate_hz
-            sample_count = max(1, int(math.floor(point_duration * args.sample_rate_hz)) + 1)
+            sample_count = max(
+                1, int(math.floor(point_duration * args.sample_rate_hz)) + 1)
             point_start = time.monotonic()
             point_measure_rows: list[dict[str, Any]] = []
             max_position_delta = 0.0
             max_velocity = 0.0
-            response_guard = _ResponseGuard(safety.max_consecutive_response_misses)
+            response_guard = _ResponseGuard(
+                safety.max_consecutive_response_misses)
 
             for sample_index in range(sample_count):
                 scheduled = sample_index * dt
                 _sleep_until(point_start + scheduled)
                 phase = 2.0 * math.pi * frequency * scheduled
-                command_tau = args.bias_nm + current_amplitude * math.sin(phase)
+                command_tau = args.bias_nm + \
+                    current_amplitude * math.sin(phase)
                 feedback = device.exchange_mit(
                     0,
                     api.MITParam(0.0, 0.0, 0.0, 0.0, command_tau),
@@ -1388,9 +1418,11 @@ def _stage4(args: argparse.Namespace) -> int:
                     )
                     max_position_delta = max(
                         max_position_delta,
-                        abs(float(feedback.position) - safety.origin_position_rad),
+                        abs(float(feedback.position) -
+                            safety.origin_position_rad),
                     )
-                    max_velocity = max(max_velocity, abs(float(feedback.velocity)))
+                    max_velocity = max(max_velocity, abs(
+                        float(feedback.velocity)))
                     if measurement:
                         point_measure_rows.append(row)
 
@@ -1401,11 +1433,13 @@ def _stage4(args: argparse.Namespace) -> int:
             phases = [float(row["phase_rad"]) for row in point_measure_rows]
             command_fit = _fit_sinusoid(
                 phases,
-                [float(row["command_torque_nm"]) for row in point_measure_rows],
+                [float(row["command_torque_nm"])
+                 for row in point_measure_rows],
             )
             feedback_fit = _fit_sinusoid(
                 phases,
-                [float(row["feedback_torque_nm"]) for row in point_measure_rows],
+                [float(row["feedback_torque_nm"])
+                 for row in point_measure_rows],
             )
             position_fit = _fit_sinusoid(
                 phases,
@@ -1416,7 +1450,8 @@ def _stage4(args: argparse.Namespace) -> int:
                 [float(row["velocity_rad_s"]) for row in point_measure_rows],
             )
             if command_fit.amplitude <= 0.0:
-                raise RuntimeError(f"zero fitted command amplitude at {frequency:g} Hz")
+                raise RuntimeError(
+                    f"zero fitted command amplitude at {frequency:g} Hz")
 
             position_gain = position_fit.amplitude / command_fit.amplitude
             velocity_gain = velocity_fit.amplitude / command_fit.amplitude
@@ -1429,19 +1464,22 @@ def _stage4(args: argparse.Namespace) -> int:
                     "feedback_torque_amplitude_nm": feedback_fit.amplitude,
                     "feedback_torque_gain": feedback_gain,
                     "feedback_torque_phase_deg": math.degrees(
-                        _wrap_phase(feedback_fit.phase_rad - command_fit.phase_rad)
+                        _wrap_phase(feedback_fit.phase_rad -
+                                    command_fit.phase_rad)
                     ),
                     "position_amplitude_rad": position_fit.amplitude,
                     "position_gain_rad_per_nm": position_gain,
                     "position_gain_db": _db(position_gain),
                     "position_phase_deg": math.degrees(
-                        _wrap_phase(position_fit.phase_rad - command_fit.phase_rad)
+                        _wrap_phase(position_fit.phase_rad -
+                                    command_fit.phase_rad)
                     ),
                     "velocity_amplitude_rad_s": velocity_fit.amplitude,
                     "velocity_gain_rad_s_per_nm": velocity_gain,
                     "velocity_gain_db": _db(velocity_gain),
                     "velocity_phase_deg": math.degrees(
-                        _wrap_phase(velocity_fit.phase_rad - command_fit.phase_rad)
+                        _wrap_phase(velocity_fit.phase_rad -
+                                    command_fit.phase_rad)
                     ),
                     "position_fit_residual_rms_rad": position_fit.residual_rms,
                     "velocity_fit_residual_rms_rad_s": velocity_fit.residual_rms,
@@ -1737,7 +1775,8 @@ def _register_stage4(subparsers: Any) -> None:
         metavar="NM",
         help="sinusoidal torque excitation; must lie strictly between measured bounds",
     )
-    parser.add_argument("--bias-nm", type=_finite_float, default=0.0, metavar="NM")
+    parser.add_argument("--bias-nm", type=_finite_float,
+                        default=0.0, metavar="NM")
     parser.add_argument(
         "--start-hz",
         type=_positive_float,
@@ -1811,7 +1850,8 @@ def register(subparsers: Any) -> None:
             "envelope -> MIT torque FRF."
         ),
     )
-    stages = parser.add_subparsers(dest="identify_stage", metavar="STAGE", required=True)
+    stages = parser.add_subparsers(
+        dest="identify_stage", metavar="STAGE", required=True)
     _register_stage1(stages)
     _register_stage2(stages)
     _register_stage3(stages)
