@@ -19,6 +19,7 @@
 #include <chrono>
 #include <damiao_can/can/socket/damiao_can.hpp>
 #include <iomanip>
+#include <limits>
 #include <ostream>
 #include <set>
 #include <sstream>
@@ -83,6 +84,86 @@ void DamiaoCAN::mit_control_one(int i, const damiao_motor::MITParam& mit_param) 
 }
 void DamiaoCAN::mit_control_all(const std::vector<damiao_motor::MITParam>& mit_params) {
     motor_collection_->mit_control_all(mit_params);
+}
+
+MITExchangeSample DamiaoCAN::exchange_mit(int i, const damiao_motor::MITParam& mit_param,
+                                          int timeout_us) {
+    using clock = std::chrono::steady_clock;
+    using microseconds = std::chrono::microseconds;
+
+    if (timeout_us < 0) {
+        throw std::invalid_argument("timeout_us must be non-negative");
+    }
+
+    const auto motor = motor_collection_->get_motor(i);
+    const canid_t target_recv_id = static_cast<canid_t>(motor.get_recv_can_id());
+
+    MITExchangeSample sample;
+    sample.command_tau = mit_param.tau;
+    sample.position = std::numeric_limits<double>::quiet_NaN();
+    sample.velocity = std::numeric_limits<double>::quiet_NaN();
+    sample.torque = std::numeric_limits<double>::quiet_NaN();
+
+    motor_collection_->mit_control_one(i, mit_param);
+    sample.tx_timestamp_ns = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now().time_since_epoch())
+            .count());
+
+    const auto deadline = clock::now() + microseconds(timeout_us);
+    while (true) {
+        const auto now = clock::now();
+        if (now >= deadline) {
+            break;
+        }
+
+        const int remaining = static_cast<int>(
+            std::chrono::duration_cast<microseconds>(deadline - now).count());
+        if (remaining <= 0 || !can_socket_->is_data_available(remaining)) {
+            break;
+        }
+
+        canid_t response_id = 0;
+        std::vector<uint8_t> data;
+        bool read_ok = false;
+
+        if (enable_fd_) {
+            canfd_frame frame{};
+            read_ok = can_socket_->read_canfd_frame(frame);
+            if (read_ok) {
+                response_id = frame.can_id & CAN_SFF_MASK;
+                data.assign(frame.data, frame.data + frame.len);
+                master_can_device_collection_->dispatch_frame_callback(frame);
+            }
+        } else {
+            can_frame frame{};
+            read_ok = can_socket_->read_can_frame(frame);
+            if (read_ok) {
+                response_id = frame.can_id & CAN_SFF_MASK;
+                data.assign(frame.data, frame.data + frame.can_dlc);
+                master_can_device_collection_->dispatch_frame_callback(frame);
+            }
+        }
+
+        if (!read_ok || response_id != target_recv_id) {
+            continue;
+        }
+
+        const auto state = damiao_motor::CanPacketDecoder::parse_motor_state_data(motor, data);
+        sample.rx_timestamp_ns = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now().time_since_epoch())
+                .count());
+        if (state.valid) {
+            sample.position = state.position;
+            sample.velocity = state.velocity;
+            sample.torque = state.torque;
+            sample.t_mos = state.t_mos;
+            sample.t_rotor = state.t_rotor;
+            sample.valid = true;
+        }
+        break;
+    }
+
+    return sample;
 }
 void DamiaoCAN::posvel_control_one(int i, const damiao_motor::PosVelParam& posvel_param) {
     motor_collection_->posvel_control_one(i, posvel_param);

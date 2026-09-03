@@ -24,6 +24,7 @@
 #include <damiao_can/can/socket/damiao_can.hpp>
 #include <damiao_can/can/socket/damiao_can_group.hpp>
 #include <damiao_can/can/socket/motor_component.hpp>
+#include <damiao_can/can/socket/sweep.hpp>
 #include <damiao_can/canbus/can_device.hpp>
 #include <damiao_can/canbus/can_device_collection.hpp>
 #include <damiao_can/canbus/can_helper.hpp>
@@ -425,6 +426,47 @@ NB_MODULE(damiao_can, m) {
                 std::memcpy(frame.data, data.c_str(), len);
             });
 
+    // Sweep acquisition data structures
+    nb::class_<MITExchangeSample>(m, "MITExchangeSample")
+        .def(nb::init<>())
+        .def_ro("tx_timestamp_ns", &MITExchangeSample::tx_timestamp_ns)
+        .def_ro("rx_timestamp_ns", &MITExchangeSample::rx_timestamp_ns)
+        .def_ro("command_tau", &MITExchangeSample::command_tau)
+        .def_ro("position", &MITExchangeSample::position)
+        .def_ro("velocity", &MITExchangeSample::velocity)
+        .def_ro("torque", &MITExchangeSample::torque)
+        .def_ro("t_mos", &MITExchangeSample::t_mos)
+        .def_ro("t_rotor", &MITExchangeSample::t_rotor)
+        .def_ro("valid", &MITExchangeSample::valid)
+        .def_prop_ro("round_trip_ns", &MITExchangeSample::round_trip_ns);
+
+    nb::class_<MITTorqueSweepConfig>(m, "MITTorqueSweepConfig")
+        .def(nb::init<>())
+        .def_rw("start_hz", &MITTorqueSweepConfig::start_hz)
+        .def_rw("stop_hz", &MITTorqueSweepConfig::stop_hz)
+        .def_rw("amplitude_nm", &MITTorqueSweepConfig::amplitude_nm)
+        .def_rw("bias_nm", &MITTorqueSweepConfig::bias_nm)
+        .def_rw("sample_rate_hz", &MITTorqueSweepConfig::sample_rate_hz)
+        .def_rw("duration_s", &MITTorqueSweepConfig::duration_s)
+        .def_rw("response_timeout_us", &MITTorqueSweepConfig::response_timeout_us);
+
+    nb::class_<MITTorqueSweepSample>(m, "MITTorqueSweepSample")
+        .def(nb::init<>())
+        .def_ro("scheduled_time_s", &MITTorqueSweepSample::scheduled_time_s)
+        .def_ro("command_time_s", &MITTorqueSweepSample::command_time_s)
+        .def_ro("frequency_hz", &MITTorqueSweepSample::frequency_hz)
+        .def_ro("command_tau", &MITTorqueSweepSample::command_tau)
+        .def_ro("feedback", &MITTorqueSweepSample::feedback);
+
+    nb::class_<MITTorqueSweepResult>(m, "MITTorqueSweepResult")
+        .def(nb::init<>())
+        .def_ro("samples", &MITTorqueSweepResult::samples)
+        .def_ro("valid_samples", &MITTorqueSweepResult::valid_samples)
+        .def_ro("dropped_samples", &MITTorqueSweepResult::dropped_samples)
+        .def_ro("elapsed_s", &MITTorqueSweepResult::elapsed_s)
+        .def_prop_ro("ok", &MITTorqueSweepResult::ok)
+        .def_prop_ro("valid_ratio", &MITTorqueSweepResult::valid_ratio);
+
     // ============================================================================
     // TOP-LEVEL COMPONENT CLASSES
     // ============================================================================
@@ -492,6 +534,8 @@ NB_MODULE(damiao_can, m) {
         .def("set_control_mode_all", &DamiaoCAN::set_control_mode_all, nb::arg("mode"))
         .def("mit_control_one", &DamiaoCAN::mit_control_one, nb::arg("index"), nb::arg("mit_param"))
         .def("mit_control_all", &DamiaoCAN::mit_control_all, nb::arg("mit_params"))
+        .def("exchange_mit", &DamiaoCAN::exchange_mit, nb::arg("index"), nb::arg("mit_param"),
+             nb::arg("timeout_us") = 1000, nb::call_guard<nb::gil_scoped_release>())
         .def("posvel_control_one", &DamiaoCAN::posvel_control_one, nb::arg("index"),
              nb::arg("posvel_param"))
         .def("posvel_control_all", &DamiaoCAN::posvel_control_all, nb::arg("posvel_params"))
@@ -513,6 +557,15 @@ NB_MODULE(damiao_can, m) {
         .def_ro("missing", &DamiaoCANRecvResult::missing)
         .def("__str__", &DamiaoCANRecvResult::to_string)
         .def("__repr__", &DamiaoCANRecvResult::to_string);
+
+    m.def(
+        "run_mit_torque_chirp",
+        [](DamiaoCAN& device, int motor_index, const MITTorqueSweepConfig& config) {
+            SweepRunner runner(device);
+            return runner.run_mit_torque_chirp(motor_index, config);
+        },
+        nb::arg("device"), nb::arg("motor_index"), nb::arg("config"),
+        nb::call_guard<nb::gil_scoped_release>());
 
     nb::class_<DamiaoCANGroupRecvResult>(m, "DamiaoCANGroupRecvResult")
         .def_prop_ro("ok", &DamiaoCANGroupRecvResult::ok)

@@ -41,6 +41,10 @@ __all__ = [
     "CanFrame",
     "CanFdFrame",
     "MITParam",
+    "MITExchangeSample",
+    "MITTorqueSweepConfig",
+    "MITTorqueSweepSample",
+    "MITTorqueSweepResult",
     "PosVelParam",
     "VelParam",
     "PosForceParam",
@@ -64,6 +68,7 @@ __all__ = [
     "DamiaoCANGroup",
     "DamiaoCANRecvResult",
     "DamiaoCANGroupRecvResult",
+    "run_mit_torque_chirp",
 
     # Exceptions
     "CANSocketException",

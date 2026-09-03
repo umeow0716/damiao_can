@@ -26,6 +26,23 @@
 
 namespace damiao_can::can::socket {
 
+
+struct MITExchangeSample {
+    uint64_t tx_timestamp_ns = 0;
+    uint64_t rx_timestamp_ns = 0;
+    double command_tau = 0.0;
+    double position = 0.0;
+    double velocity = 0.0;
+    double torque = 0.0;
+    int t_mos = 0;
+    int t_rotor = 0;
+    bool valid = false;
+
+    uint64_t round_trip_ns() const noexcept {
+        return rx_timestamp_ns >= tx_timestamp_ns ? rx_timestamp_ns - tx_timestamp_ns : 0;
+    }
+};
+
 struct DamiaoCANRecvResult {
     std::string can_interface;
     int expect = 0;
@@ -70,6 +87,8 @@ public:
     void set_control_mode_all(damiao_motor::ControlMode mode);
     void mit_control_one(int i, const damiao_motor::MITParam& mit_param);
     void mit_control_all(const std::vector<damiao_motor::MITParam>& mit_params);
+    MITExchangeSample exchange_mit(int i, const damiao_motor::MITParam& mit_param,
+                                   int timeout_us = 1000);
     void posvel_control_one(int i, const damiao_motor::PosVelParam& posvel_param);
     void posvel_control_all(const std::vector<damiao_motor::PosVelParam>& posvel_params);
     void vel_control_one(int i, const damiao_motor::VelParam& vel_param);
