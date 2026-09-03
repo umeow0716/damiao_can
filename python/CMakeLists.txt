@@ -118,10 +118,7 @@ install(FILES damiao_can/__init__.py damiao_can/__init__.pyi
               damiao_can/__main__.py damiao_can/damiao_can.pyi
               damiao_can/py.typed DESTINATION "damiao_can")
 install(
-  FILES damiao_can/cli/__init__.py
-        damiao_can/cli/common.py
-        damiao_can/cli/set_zero.py
-        damiao_can/cli/set_baudrate.py
-        damiao_can/cli/drop_test.py
-        damiao_can/cli/probe.py
+  FILES damiao_can/cli/__init__.py damiao_can/cli/common.py
+        damiao_can/cli/set_zero.py damiao_can/cli/set_baudrate.py
+        damiao_can/cli/drop_test.py damiao_can/cli/probe.py
   DESTINATION "damiao_can/cli")
