@@ -125,4 +125,5 @@ install(
         damiao_can/cli/drop_test.py
         damiao_can/cli/probe.py
         damiao_can/cli/identify.py
+        damiao_can/cli/workflow.py
   DESTINATION "damiao_can/cli")

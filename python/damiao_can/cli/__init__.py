@@ -9,7 +9,7 @@ import argparse
 import sys
 from typing import Sequence
 
-from . import drop_test, identify, probe, set_baudrate, set_zero
+from . import drop_test, probe, set_baudrate, set_zero, workflow
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -25,12 +25,10 @@ Range commands (set-zero, set-baudrate, drop-test):
   --to ID                 Last motor send ID, inclusive
                           recv_id is always send_id + 0x10
 
-Identification commands:
-  identify friction       Stage 1 VEL friction characterization
-  identify breakaway      Stage 2 MIT breakaway torque ramps
-  identify envelope       Stage 3 torque linearity envelope
-  identify frf            Stage 4 MIT torque stepped-sine FRF
-  --id ID                 Single motor send ID; recv_id is ID + 0x10
+Identification command:
+  identify -i IFACE --id ID
+                          Run the complete four-stage workflow
+                          friction -> breakaway -> envelope -> FRF
 
 Common optional interface settings:
   --no-fd                 Disable host CAN-FD. Default: FD enabled
@@ -65,13 +63,8 @@ Examples:
   # Probe motor identity without pre-selecting MotorType
   python -m damiao_can probe -i can0 --from 0x01 --to 0x08
 
-  # Stage 1: characterize friction at +/-0.25/0.50/0.75 of V_test
-  python -m damiao_can identify friction -i can0 --id 0x01 \
-      --test-velocity-rad-s 2 --max-position-delta-rad 1 \
-      --max-velocity-rad-s 3
-
-  # Stage-specific help contains the required safety and excitation bounds
-  python -m damiao_can identify frf --help
+  # Run the complete mechanical identification workflow
+  python -m damiao_can identify -i can0 --id 0x01
 """,
     )
     subparsers = parser.add_subparsers(
@@ -81,7 +74,7 @@ Examples:
     set_baudrate.register(subparsers)
     drop_test.register(subparsers)
     probe.register(subparsers)
-    identify.register(subparsers)
+    workflow.register(subparsers)
     return parser
 
 

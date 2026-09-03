@@ -144,30 +144,6 @@ python -m damiao_can probe --help
 python -m damiao_can identify --help
 ```
 
-The mechanical-identification workflow follows `docs/motor_identification_workflow.md` and
-keeps trusted driver parameters (Rs/Ls/Flux/NPP/Gr and protocol limits) as priors. The CLI
-adds only the missing mechanical measurements:
-
-```bash
-# Stage 1: VEL friction characterization
-python -m damiao_can identify friction --help
-
-# Stage 2: MIT torque-only breakaway ramps
-python -m damiao_can identify breakaway --help
-
-# Stage 3: torque linearity envelope at representative velocities
-python -m damiao_can identify envelope --help
-
-# Stage 4: MIT torque stepped-sine FRF
-python -m damiao_can identify frf --help
-```
-
-Stage 4 deliberately has no fixed torque-amplitude default. It requires an explicit measured
-breakaway lower bound, linear-excitation upper bound, and an excitation amplitude strictly
-between them. The FRF command identifies command torque -> joint position/velocity; it does
-not use POS_VEL bandwidth as a substitute and does not label a -3 dB point as controller
-`omega`.
-
 Run a drop test:
 
 ```bash
