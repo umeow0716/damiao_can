@@ -272,8 +272,12 @@ NB_MODULE(damiao_can, m) {
         .def_static("create_posforce_control_command",
                     &CanPacketEncoder::create_posforce_control_command, nb::arg("motor"),
                     nb::arg("posforce_param"))
-        .def_static("create_query_param_command", &CanPacketEncoder::create_query_param_command,
-                    nb::arg("motor"), nb::arg("rid"));
+        .def_static(
+            "create_query_param_command",
+            [](const Motor& motor, int rid) {
+                return CanPacketEncoder::create_query_param_command(motor, rid);
+            },
+            nb::arg("motor"), nb::arg("rid"));
 
     nb::class_<CanPacketDecoder>(m, "CanPacketDecoder")
         .def_static("parse_motor_state_data", &CanPacketDecoder::parse_motor_state_data,
