@@ -23,4 +23,19 @@ device.init_motors(
 )
 ```
 
-Auto initialization reads `PMAX`, `VMAX`, and `TMAX` from each motor and uses them as that motor's protocol limits. If the limits cannot be resolved safely, `MotorLimitResolutionError` is raised. Pass `motor_types=[dc.MotorType.DM4310]` to override auto detection, or use `None` entries for per-motor auto detection in a mixed list.
+Auto initialization reads `PMAX`, `VMAX`, and `TMAX` from each motor and uses them as that motor's protocol limits. If the limits cannot be resolved safely, `MotorLimitResolutionError` is raised. Each register read uses a 100 ms maximum response timeout and returns as soon as the reply arrives. Pass `motor_types=[dc.MotorType.DM4310]` to override auto detection, or use `None` entries for per-motor auto detection in a mixed list.
+
+## Mechanical identification CLI
+
+The Python package owns long-running experiment orchestration; the C++ library remains the
+low-level SocketCAN/control layer. Use the four-stage workflow from the repository docs:
+
+```bash
+python -m damiao_can identify friction --help
+python -m damiao_can identify breakaway --help
+python -m damiao_can identify envelope --help
+python -m damiao_can identify frf --help
+```
+
+The FRF stage uses MIT torque stepped-sine excitation and requires measured breakaway and
+linear-region bounds. There is no hard-coded `0.1 Nm` fallback.

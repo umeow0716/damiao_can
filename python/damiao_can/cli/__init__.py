@@ -9,7 +9,7 @@ import argparse
 import sys
 from typing import Sequence
 
-from . import drop_test, probe, set_baudrate, set_zero, sweep
+from . import drop_test, identify, probe, set_baudrate, set_zero
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -25,9 +25,11 @@ Range commands (set-zero, set-baudrate, drop-test):
   --to ID                 Last motor send ID, inclusive
                           recv_id is always send_id + 0x10
 
-Sweep commands:
-  sweep position          POS_VEL tracking response and -3 dB cutoff
-  sweep torque            MIT torque chirp for plant identification
+Identification commands:
+  identify friction       Stage 1 VEL friction characterization
+  identify breakaway      Stage 2 MIT breakaway torque ramps
+  identify envelope       Stage 3 torque linearity envelope
+  identify frf            Stage 4 MIT torque stepped-sine FRF
   --id ID                 Single motor send ID; recv_id is ID + 0x10
 
 Common optional interface settings:
@@ -41,7 +43,7 @@ Commands:
   set-baudrate   Change and save motor CAN baudrate
   drop-test      Measure per-motor response packet loss
   probe          Read identity registers and infer motor type
-  sweep          Measure frequency response (position or torque)
+  identify       Run the four-stage mechanical identification workflow
 
 Examples:
   # Set zero on can0, host defaults to CAN-FD 1M/5M
@@ -63,11 +65,13 @@ Examples:
   # Probe motor identity without pre-selecting MotorType
   python -m damiao_can probe -i can0 --from 0x01 --to 0x08
 
-  # Measure POS_VEL command-tracking response and -3 dB cutoff
-  python -m damiao_can sweep position -i can0 --id 0x01
+  # Stage 1: characterize friction at +/-0.25/0.50/0.75 of V_test
+  python -m damiao_can identify friction -i can0 --id 0x01 \
+      --test-velocity-rad-s 2 --max-position-delta-rad 1 \
+      --max-velocity-rad-s 3
 
-  # Run the MIT torque plant-identification chirp
-  python -m damiao_can sweep torque -i can0 --id 0x01
+  # Stage-specific help contains the required safety and excitation bounds
+  python -m damiao_can identify frf --help
 """,
     )
     subparsers = parser.add_subparsers(
@@ -77,7 +81,7 @@ Examples:
     set_baudrate.register(subparsers)
     drop_test.register(subparsers)
     probe.register(subparsers)
-    sweep.register(subparsers)
+    identify.register(subparsers)
     return parser
 
 

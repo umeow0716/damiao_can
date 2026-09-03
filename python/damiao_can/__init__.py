@@ -45,13 +45,7 @@ __all__ = [
     "CanFdFrame",
     "MITParam",
     "MITExchangeSample",
-    "MITTorqueSweepConfig",
-    "MITTorqueSweepSample",
-    "MITTorqueSweepResult",
     "PosVelExchangeSample",
-    "PositionSweepConfig",
-    "PositionSweepSample",
-    "PositionSweepResult",
     "PosVelParam",
     "VelParam",
     "PosForceParam",
@@ -75,8 +69,6 @@ __all__ = [
     "DamiaoCANGroup",
     "DamiaoCANRecvResult",
     "DamiaoCANGroupRecvResult",
-    "run_mit_torque_chirp",
-    "run_position_sinestream",
 
     # Exceptions
     "MotorLimitResolutionError",

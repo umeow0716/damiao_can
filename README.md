@@ -58,7 +58,7 @@ print(result)
 device.disable_all()
 ```
 
-`motor_types` is optional. When it is omitted, `init_motors()` auto-initializes each motor by reading `PMAX`, `VMAX`, and `TMAX` from the motor and uses those values as the protocol limits. If the limits match a known family, the motor gets that canonical `MotorType`; otherwise it remains `MotorType.UNKNOWN` while still using the register-defined limits. If the limits cannot be resolved safely, initialization raises `MotorLimitResolutionError` instead of guessing.
+`motor_types` is optional. When it is omitted, `init_motors()` auto-initializes each motor by reading `PMAX`, `VMAX`, and `TMAX` from the motor and uses those values as the protocol limits. If the limits match a known family, the motor gets that canonical `MotorType`; otherwise it remains `MotorType.UNKNOWN` while still using the register-defined limits. If the limits cannot be resolved safely, initialization raises `MotorLimitResolutionError` instead of guessing. Each parameter read waits up to 100 ms for a response, but continues immediately when the response arrives; this is a timeout, not a fixed 100 ms sleep.
 
 To override auto-detection for a motor, pass `motor_types` explicitly:
 
@@ -140,21 +140,33 @@ Use the command-specific help for available options and examples:
 python -m damiao_can set-zero --help
 python -m damiao_can set-baudrate --help
 python -m damiao_can drop-test --help
-python -m damiao_can sweep position --help
-python -m damiao_can sweep torque --help
+python -m damiao_can probe --help
+python -m damiao_can identify --help
 ```
 
-Measure POS_VEL position-command tracking and estimate the first -3 dB cutoff:
+The mechanical-identification workflow follows `docs/motor_identification_workflow.md` and
+keeps trusted driver parameters (Rs/Ls/Flux/NPP/Gr and protocol limits) as priors. The CLI
+adds only the missing mechanical measurements:
 
 ```bash
-python -m damiao_can sweep position -i can0 --id 1
+# Stage 1: VEL friction characterization
+python -m damiao_can identify friction --help
+
+# Stage 2: MIT torque-only breakaway ramps
+python -m damiao_can identify breakaway --help
+
+# Stage 3: torque linearity envelope at representative velocities
+python -m damiao_can identify envelope --help
+
+# Stage 4: MIT torque stepped-sine FRF
+python -m damiao_can identify frf --help
 ```
 
-The default position experiment uses 20 logarithmically spaced points from 1 to 100 Hz,
-up to +/-0.05 rad excursion, a 10 rad/s POS_VEL velocity ceiling, and `--wait-us 500`.
-The excitation amplitude is reduced automatically at high frequency so the commanded sine
-does not itself demand the full velocity ceiling. Raw timestamped samples and a gain/phase
-CSV are written separately.
+Stage 4 deliberately has no fixed torque-amplitude default. It requires an explicit measured
+breakaway lower bound, linear-excitation upper bound, and an excitation amplitude strictly
+between them. The FRF command identifies command torque -> joint position/velocity; it does
+not use POS_VEL bandwidth as a substitute and does not label a -3 dB point as controller
+`omega`.
 
 Run a drop test:
 
