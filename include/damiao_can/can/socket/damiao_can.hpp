@@ -117,7 +117,7 @@ public:
     void refresh_all();
     void query_param_one(int i, int RID);
     void query_param_all(int RID);
-    MotorIdentityResult probe_motor_identity(uint32_t send_can_id, int timeout_us = 5000);
+    MotorIdentityResult probe_motor_identity(uint32_t send_can_id, int timeout_us = 100000);
     void set_callback_mode_all(damiao_motor::CallbackMode callback_mode);
     void set_control_mode_one(int i, damiao_motor::ControlMode mode);
     void set_control_mode_all(damiao_motor::ControlMode mode);

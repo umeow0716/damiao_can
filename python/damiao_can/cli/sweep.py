@@ -173,7 +173,7 @@ def _make_sweep_device(
     configure_interface(api, args)
     device = api.DamiaoCAN(args.interface, args.fd)
     if args.motor_type == "auto":
-        identity = device.probe_motor_identity(args.motor_id, 5_000)
+        identity = device.probe_motor_identity(args.motor_id, 100_000)
         if not identity.responded:
             raise ValueError(
                 "motor auto-detection got no register response; pass --motor-type to override"

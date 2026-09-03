@@ -659,7 +659,7 @@ NB_MODULE(damiao_can, m) {
         .def("query_param_one", &DamiaoCAN::query_param_one, nb::arg("index"), nb::arg("rid"))
         .def("query_param_all", &DamiaoCAN::query_param_all, nb::arg("rid"))
         .def("probe_motor_identity", &DamiaoCAN::probe_motor_identity, nb::arg("send_can_id"),
-             nb::arg("timeout_us") = 5000, nb::call_guard<nb::gil_scoped_release>())
+             nb::arg("timeout_us") = 100000, nb::call_guard<nb::gil_scoped_release>())
         .def("set_callback_mode_all", &DamiaoCAN::set_callback_mode_all, nb::arg("callback_mode"))
         .def("set_control_mode_one", &DamiaoCAN::set_control_mode_one, nb::arg("index"),
              nb::arg("mode"))

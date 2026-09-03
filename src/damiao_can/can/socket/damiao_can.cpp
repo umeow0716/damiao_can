@@ -91,11 +91,11 @@ void DamiaoCAN::init_motors(
 
         MotorIdentityRegisters registers;
         registers.pmax = probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::PMAX),
-                                     5000);
+                                     100000);
         registers.vmax = probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::VMAX),
-                                     5000);
+                                     100000);
         registers.tmax = probe_param(send_can_ids[i], static_cast<int>(damiao_motor::RID::TMAX),
-                                     5000);
+                                     100000);
         const auto identity = classify_motor_identity(send_can_ids[i], registers);
         if (identity.protocol_limits.has_value()) {
             resolved_limits.push_back(*identity.protocol_limits);

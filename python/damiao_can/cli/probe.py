@@ -9,7 +9,7 @@ import argparse
 
 from .common import add_common_options, configure_interface, format_id, id_range, load_api
 
-DEFAULT_WAIT_US = 5_000
+DEFAULT_WAIT_US = 100_000
 
 
 def _fmt(value: object, digits: int = 6) -> str:
@@ -80,6 +80,6 @@ def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
         type=int,
         default=DEFAULT_WAIT_US,
         metavar="US",
-        help="maximum response wait for each register read (default: 5000 us)",
+        help="maximum response wait for each register read (default: 100000 us)",
     )
     parser.set_defaults(func=run)
