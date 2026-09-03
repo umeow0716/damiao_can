@@ -36,7 +36,7 @@ device.recv_all()
 
 # PosVelParam(q, dq)
 #   q  : target position (rad)
-#   dq : target velocity (rad/s)
+#   dq : maximum absolute trajectory speed / v_des (rad/s)
 device.set_callback_mode_all(dc.CallbackMode.STATE)
 device.posvel_control_all([dc.PosVelParam(0.0, 0.0)])
 device.recv_all()

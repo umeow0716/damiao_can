@@ -121,7 +121,21 @@ Use the command-specific help for available options and examples:
 python -m damiao_can set-zero --help
 python -m damiao_can set-baudrate --help
 python -m damiao_can drop-test --help
+python -m damiao_can sweep position --help
+python -m damiao_can sweep torque --help
 ```
+
+Measure POS_VEL position-command tracking and estimate the first -3 dB cutoff:
+
+```bash
+python -m damiao_can sweep position -i can0 --id 1
+```
+
+The default position experiment uses 20 logarithmically spaced points from 1 to 100 Hz,
+up to +/-0.05 rad excursion, a 10 rad/s POS_VEL velocity ceiling, and `--wait-us 500`.
+The excitation amplitude is reduced automatically at high frequency so the commanded sine
+does not itself demand the full velocity ceiling. Raw timestamped samples and a gain/phase
+CSV are written separately.
 
 Run a drop test:
 

@@ -25,6 +25,16 @@ from damiao_can.damiao_can import ControlMode
 from damiao_can.damiao_can import DMDeviceCollection
 from damiao_can.damiao_can import LimitParam
 from damiao_can.damiao_can import MITParam
+from damiao_can.damiao_can import MITExchangeSample
+from damiao_can.damiao_can import MITTorqueSweepConfig
+from damiao_can.damiao_can import MITTorqueSweepSample
+from damiao_can.damiao_can import MITTorqueSweepResult
+from damiao_can.damiao_can import PosVelExchangeSample
+from damiao_can.damiao_can import PositionSweepConfig
+from damiao_can.damiao_can import PositionSweepSample
+from damiao_can.damiao_can import PositionSweepResult
+from damiao_can.damiao_can import run_mit_torque_chirp
+from damiao_can.damiao_can import run_position_sinestream
 from damiao_can.damiao_can import Motor
 from damiao_can.damiao_can import MotorDeviceCan
 from damiao_can.damiao_can import MotorStateResult
@@ -54,6 +64,14 @@ __all__: list[str] = [
     "CanFrame",
     "CanFdFrame",
     "MITParam",
+    "MITExchangeSample",
+    "MITTorqueSweepConfig",
+    "MITTorqueSweepSample",
+    "MITTorqueSweepResult",
+    "PosVelExchangeSample",
+    "PositionSweepConfig",
+    "PositionSweepSample",
+    "PositionSweepResult",
     "PosVelParam",
     "VelParam",
     "PosForceParam",
@@ -70,6 +88,8 @@ __all__: list[str] = [
     "DamiaoCANGroup",
     "DamiaoCANGroupRecvResult",
     "DamiaoCANRecvResult",
+    "run_mit_torque_chirp",
+    "run_position_sinestream",
     "CANSocketException",
     "CANHelperException",
 ]
@@ -90,6 +110,7 @@ DM8009: MotorType  # value = MotorType.DM8009
 DMG6220: MotorType  # value = MotorType.DMG6220
 DMH3510: MotorType  # value = MotorType.DMH3510
 DMH6215: MotorType  # value = MotorType.DMH6215
+UNKNOWN: MotorType  # value = MotorType.UNKNOWN
 Damp: MotorVariable  # value = MotorVariable.Damp
 Deta: MotorVariable  # value = MotorVariable.Deta
 ESC_ID: MotorVariable  # value = MotorVariable.ESC_ID

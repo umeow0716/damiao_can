@@ -31,6 +31,10 @@ public:
                             const std::vector<uint32_t>& send_can_ids,
                             const std::vector<uint32_t>& recv_can_ids, bool use_fd,
                             const std::vector<damiao_motor::ControlMode>& control_modes = {});
+    void init_motor_devices_with_limits(
+        const std::vector<damiao_motor::LimitParam>& limit_params,
+        const std::vector<uint32_t>& send_can_ids, const std::vector<uint32_t>& recv_can_ids,
+        bool use_fd, const std::vector<damiao_motor::ControlMode>& control_modes = {});
 
 private:
     std::vector<damiao_motor::Motor> motors_;

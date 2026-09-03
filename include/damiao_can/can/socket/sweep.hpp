@@ -57,14 +57,61 @@ struct MITTorqueSweepResult {
     }
 };
 
+// POS_VEL command-tracking bandwidth measurement using a logarithmically
+// spaced stepped-sine (sinestream) excitation. Each frequency is held for
+// settling_cycles + measure_cycles. Only the measurement cycles should be
+// used for gain/phase estimation.
+struct PositionSweepConfig {
+    double center_position_rad = 0.0;
+    double start_hz = 1.0;
+    double stop_hz = 100.0;
+    double amplitude_rad = 0.05;
+    double velocity_limit_rad_s = 10.0;
+    int wait_us = 500;
+    int points = 20;
+    int settling_cycles = 2;
+    int measure_cycles = 3;
+};
+
+struct PositionSweepSample {
+    int frequency_index = 0;
+    double scheduled_time_s = 0.0;
+    double command_time_s = 0.0;
+    double frequency_hz = 0.0;
+    double phase_rad = 0.0;
+    double command_amplitude_rad = 0.0;
+    double command_position_rad = 0.0;
+    bool measurement = false;
+    PosVelExchangeSample feedback;
+};
+
+struct PositionSweepResult {
+    std::vector<PositionSweepSample> samples;
+    std::size_t valid_samples = 0;
+    std::size_t dropped_samples = 0;
+    double center_position_rad = 0.0;
+    double elapsed_s = 0.0;
+
+    bool ok() const noexcept { return !samples.empty() && dropped_samples == 0; }
+    double valid_ratio() const noexcept {
+        if (samples.empty()) {
+            return 0.0;
+        }
+        return static_cast<double>(valid_samples) / static_cast<double>(samples.size());
+    }
+};
+
 class SweepRunner {
 public:
     explicit SweepRunner(DamiaoCAN& device) : device_(device) {}
 
     MITTorqueSweepResult run_mit_torque_chirp(int motor_index,
                                                const MITTorqueSweepConfig& config);
+    PositionSweepResult run_position_sinestream(int motor_index,
+                                                 const PositionSweepConfig& config);
 
     static void validate_mit_torque_config(const MITTorqueSweepConfig& config);
+    static void validate_position_config(const PositionSweepConfig& config);
 
 private:
     DamiaoCAN& device_;

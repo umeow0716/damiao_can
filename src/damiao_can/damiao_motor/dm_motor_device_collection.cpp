@@ -217,6 +217,10 @@ std::vector<Motor> DMDeviceCollection::get_motors() const {
 
 Motor DMDeviceCollection::get_motor(int i) const { return get_dm_devices().at(i)->get_motor(); }
 
+void DMDeviceCollection::set_limit_param_one(int i, const LimitParam& limit_param) {
+    get_dm_devices().at(i)->get_motor().set_limit_param(limit_param);
+}
+
 std::vector<std::shared_ptr<DMCANDevice>> DMDeviceCollection::get_dm_devices() const {
     std::vector<std::shared_ptr<DMCANDevice>> dm_devices;
     for (const auto& [id, device] : device_collection_->get_devices()) {

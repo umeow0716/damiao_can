@@ -29,12 +29,15 @@ __author__ = "Enactic, Inc."
 __all__ = [
     # Enums
     "MotorType",
+    "MotorIdentityConfidence",
     "MotorVariable",
     "CallbackMode",
     "ControlMode",
 
     # Data structures
     "LimitParam",
+    "MotorIdentityRegisters",
+    "MotorIdentityResult",
     "ParamResult",
     "MotorStateResult",
     "CANPacket",
@@ -45,6 +48,10 @@ __all__ = [
     "MITTorqueSweepConfig",
     "MITTorqueSweepSample",
     "MITTorqueSweepResult",
+    "PosVelExchangeSample",
+    "PositionSweepConfig",
+    "PositionSweepSample",
+    "PositionSweepResult",
     "PosVelParam",
     "VelParam",
     "PosForceParam",
@@ -69,6 +76,7 @@ __all__ = [
     "DamiaoCANRecvResult",
     "DamiaoCANGroupRecvResult",
     "run_mit_torque_chirp",
+    "run_position_sinestream",
 
     # Exceptions
     "CANSocketException",

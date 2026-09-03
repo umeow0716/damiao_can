@@ -57,8 +57,8 @@ struct MITParam {
 };
 
 struct PosVelParam {
-    double q;
-    double dq;
+    double q;   // Target position in rad.
+    double dq;  // Maximum absolute trajectory speed (v_des) in rad/s.
 };
 
 struct VelParam {
@@ -84,10 +84,11 @@ public:
                                                      const PosForceParam& posforce_param);
     static CANPacket create_set_control_mode_command(const Motor& motor, ControlMode mode);
     static CANPacket create_query_param_command(const Motor& motor, int RID);
+    static CANPacket create_query_param_command(uint32_t send_can_id, int RID);
     static CANPacket create_refresh_command(const Motor& motor);
 
 private:
-    static std::vector<uint8_t> pack_mit_control_data(MotorType motor_type,
+    static std::vector<uint8_t> pack_mit_control_data(const LimitParam& limits,
                                                       const MITParam& mit_param);
     static std::vector<uint8_t> pack_posvel_control_data(MotorType motor_type,
                                                          const PosVelParam& posvel_param);

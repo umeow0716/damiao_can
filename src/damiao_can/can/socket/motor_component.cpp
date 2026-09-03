@@ -57,4 +57,38 @@ void MotorComponent::init_motor_devices(
     }
 }
 
+
+void MotorComponent::init_motor_devices_with_limits(
+    const std::vector<damiao_motor::LimitParam>& limit_params,
+    const std::vector<canid_t>& send_can_ids, const std::vector<canid_t>& recv_can_ids, bool use_fd,
+    const std::vector<damiao_motor::ControlMode>& control_modes) {
+    if (limit_params.size() != send_can_ids.size() || limit_params.size() != recv_can_ids.size()) {
+        throw std::invalid_argument(
+            "Limit parameters, send CAN IDs, and receive CAN IDs vectors must have the same size.");
+    }
+    if (!control_modes.empty() && control_modes.size() != 1 &&
+        control_modes.size() != limit_params.size()) {
+        throw std::invalid_argument(
+            "Control modes vector must have a single element or match the number of motors.");
+    }
+
+    motors_.reserve(limit_params.size());
+    for (size_t i = 0; i < limit_params.size(); ++i) {
+        motors_.emplace_back(limit_params[i], send_can_ids[i], recv_can_ids[i]);
+        auto motor_device =
+            std::make_shared<damiao_motor::DMCANDevice>(motors_.back(), CAN_SFF_MASK, use_fd);
+        get_device_collection().add_device(motor_device);
+    }
+
+    if (!control_modes.empty()) {
+        if (control_modes.size() == 1) {
+            set_control_mode_all(control_modes[0]);
+        } else {
+            for (size_t i = 0; i < limit_params.size(); ++i) {
+                set_control_mode_one(static_cast<int>(i), control_modes[i]);
+            }
+        }
+    }
+}
+
 }  // namespace damiao_can::can::socket

@@ -37,7 +37,7 @@ CANPacket CanPacketEncoder::create_set_zero_command(const Motor& motor) {
 
 CANPacket CanPacketEncoder::create_mit_control_command(const Motor& motor,
                                                        const MITParam& mit_param) {
-    return {motor.get_send_can_id(), pack_mit_control_data(motor.get_motor_type(), mit_param)};
+    return {motor.get_send_can_id(), pack_mit_control_data(motor.get_limit_param(), mit_param)};
 }
 
 CANPacket CanPacketEncoder::create_posvel_control_command(const Motor& motor,
@@ -62,7 +62,11 @@ CANPacket CanPacketEncoder::create_posforce_control_command(const Motor& motor,
 }
 
 CANPacket CanPacketEncoder::create_query_param_command(const Motor& motor, int RID) {
-    return {0x7FF, pack_query_param_data(motor.get_send_can_id(), RID)};
+    return create_query_param_command(motor.get_send_can_id(), RID);
+}
+
+CANPacket CanPacketEncoder::create_query_param_command(uint32_t send_can_id, int RID) {
+    return {0x7FF, pack_query_param_data(send_can_id, RID)};
 }
 
 CANPacket CanPacketEncoder::create_set_control_mode_command(const Motor& motor, ControlMode mode) {
@@ -100,7 +104,7 @@ StateResult CanPacketDecoder::parse_motor_state_data(const Motor& motor,
     int t_rotor = static_cast<int>(data[7]);
 
     // Convert to physical values
-    LimitParam limits = MOTOR_LIMIT_PARAMS[static_cast<int>(motor.get_motor_type())];
+    const LimitParam limits = motor.get_limit_param();
     double recv_q = CanPacketDecoder::uint_to_double(q_uint, -limits.pMax, limits.pMax, 16);
     double recv_dq = CanPacketDecoder::uint_to_double(dq_uint, -limits.vMax, limits.vMax, 12);
     double recv_tau = CanPacketDecoder::uint_to_double(tau_uint, -limits.tMax, limits.tMax, 12);
@@ -128,13 +132,11 @@ ParamResult CanPacketDecoder::parse_motor_param_data(const std::vector<uint8_t>&
 }
 
 // Data packing utility methods
-std::vector<uint8_t> CanPacketEncoder::pack_mit_control_data(MotorType motor_type,
+std::vector<uint8_t> CanPacketEncoder::pack_mit_control_data(const LimitParam& limits,
                                                              const MITParam& mit_param) {
     uint16_t kp_uint = double_to_uint(mit_param.kp, 0, 500, 12);
     uint16_t kd_uint = double_to_uint(mit_param.kd, 0, 5, 12);
 
-    // Get motor limits based on type
-    LimitParam limits = MOTOR_LIMIT_PARAMS[static_cast<int>(motor_type)];
     uint16_t q_uint = double_to_uint(mit_param.q, -(double)limits.pMax, (double)limits.pMax, 16);
     uint16_t dq_uint = double_to_uint(mit_param.dq, -(double)limits.vMax, (double)limits.vMax, 12);
     uint16_t tau_uint =

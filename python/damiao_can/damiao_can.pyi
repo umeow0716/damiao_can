@@ -5,7 +5,7 @@ from __future__ import annotations
 import collections.abc
 import enum
 import typing
-__all__: list[str] = ['ACC', 'MotorComponent', 'CANDevice', 'CANDeviceCollection', 'CANPacket', 'CANSocket', 'CANSocketException', 'COUNT', 'CTRL_MODE', 'CallbackMode', 'CanFdFrame', 'CanFrame', 'CanPacketDecoder', 'CanPacketEncoder', 'ControlMode', 'DEC', 'DM10010', 'DM10010L', 'DM3507', 'DM4310', 'DM4310_48V', 'DM4340', 'DM4340_48V', 'DM6006', 'DM8006', 'DM8009', 'DMDeviceCollection', 'DMG6220', 'DMH3510', 'DMH6215', 'Damp', 'Deta', 'ESC_ID', 'Flux', 'GREF', 'Gr', 'IGNORE', 'IQ_c1', 'I_BW', 'Inertia', 'KI_APR', 'KI_ASR', 'KP_APR', 'KP_ASR', 'KT_Value', 'LS', 'LimitParam', 'MAX_SPD', 'MIT', 'MITParam', 'MITExchangeSample', 'MITTorqueSweepConfig', 'MITTorqueSweepSample', 'MITTorqueSweepResult', 'MST_ID', 'Motor', 'MotorDeviceCan', 'MotorStateResult', 'MotorType', 'MotorVariable', 'NPP', 'OC_Value', 'OT_Value', 'OV_Value', 'DamiaoCAN', 'DamiaoCANGroup', 'DamiaoCANGroupRecvResult', 'DamiaoCANRecvResult', 'PARAM', 'PMAX', 'POS_FORCE', 'POS_VEL', 'ParamResult', 'PosForceParam', 'PosVelParam', 'VelParam', 'Rs', 'SN', 'STATE', 'TIMEOUT', 'TMAX', 'UV_Value', 'VEL', 'VL_c1', 'VMAX', 'V_BW', 'can_br', 'dir', 'hw_ver', 'k1', 'k2', 'm_off', 'p_m', 'sub_ver', 'sw_ver', 'u_off', 'v_off', 'xout', 'run_mit_torque_chirp']
+__all__: list[str] = ['ACC', 'MotorComponent', 'CANDevice', 'CANDeviceCollection', 'CANPacket', 'CANSocket', 'CANSocketException', 'COUNT', 'UNKNOWN', 'CTRL_MODE', 'CallbackMode', 'CanFdFrame', 'CanFrame', 'CanPacketDecoder', 'CanPacketEncoder', 'ControlMode', 'DEC', 'DM10010', 'DM10010L', 'DM3507', 'DM4310', 'DM4310_48V', 'DM4340', 'DM4340_48V', 'DM6006', 'DM8006', 'DM8009', 'DMDeviceCollection', 'DMG6220', 'DMH3510', 'DMH6215', 'Damp', 'Deta', 'ESC_ID', 'Flux', 'GREF', 'Gr', 'IGNORE', 'IQ_c1', 'I_BW', 'Inertia', 'KI_APR', 'KI_ASR', 'KP_APR', 'KP_ASR', 'KT_Value', 'LS', 'LimitParam', 'MAX_SPD', 'MIT', 'MITParam', 'MITExchangeSample', 'MITTorqueSweepConfig', 'MITTorqueSweepSample', 'MITTorqueSweepResult', 'PosVelExchangeSample', 'PositionSweepConfig', 'PositionSweepSample', 'PositionSweepResult', 'MST_ID', 'Motor', 'MotorDeviceCan', 'MotorStateResult', 'MotorType', 'MotorIdentityConfidence', 'MotorIdentityRegisters', 'MotorIdentityResult', 'MotorVariable', 'NPP', 'OC_Value', 'OT_Value', 'OV_Value', 'DamiaoCAN', 'DamiaoCANGroup', 'DamiaoCANGroupRecvResult', 'DamiaoCANRecvResult', 'PARAM', 'PMAX', 'POS_FORCE', 'POS_VEL', 'ParamResult', 'PosForceParam', 'PosVelParam', 'VelParam', 'Rs', 'SN', 'STATE', 'TIMEOUT', 'TMAX', 'UV_Value', 'VEL', 'VL_c1', 'VMAX', 'V_BW', 'can_br', 'dir', 'hw_ver', 'k1', 'k2', 'm_off', 'p_m', 'sub_ver', 'sw_ver', 'u_off', 'v_off', 'xout', 'run_mit_torque_chirp', 'run_position_sinestream']
 class MotorComponent(DMDeviceCollection):
     @staticmethod
     def __new__(type, *args, **kwargs):
@@ -276,8 +276,10 @@ class LimitParam:
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
-    def __init__(self) -> None:
-        ...
+    @typing.overload
+    def __init__(self) -> None: ...
+    @typing.overload
+    def __init__(self, pMax: float, vMax: float, tMax: float) -> None: ...
 class MITParam:
     dq: float
     kd: float
@@ -341,6 +343,57 @@ class MITTorqueSweepResult:
     @property
     def valid_ratio(self) -> float: ...
 
+class PosVelExchangeSample:
+    tx_timestamp_ns: int
+    rx_timestamp_ns: int
+    command_position: float
+    command_velocity_limit: float
+    position: float
+    velocity: float
+    torque: float
+    t_mos: int
+    t_rotor: int
+    valid: bool
+    def __init__(self) -> None: ...
+    @property
+    def round_trip_ns(self) -> int: ...
+
+class PositionSweepConfig:
+    center_position_rad: float
+    start_hz: float
+    stop_hz: float
+    amplitude_rad: float
+    velocity_limit_rad_s: float
+    wait_us: int
+    points: int
+    settling_cycles: int
+    measure_cycles: int
+    def __init__(self) -> None: ...
+
+class PositionSweepSample:
+    frequency_index: int
+    scheduled_time_s: float
+    command_time_s: float
+    frequency_hz: float
+    phase_rad: float
+    command_amplitude_rad: float
+    command_position_rad: float
+    measurement: bool
+    feedback: PosVelExchangeSample
+    def __init__(self) -> None: ...
+
+class PositionSweepResult:
+    samples: list[PositionSweepSample]
+    valid_samples: int
+    dropped_samples: int
+    center_position_rad: float
+    elapsed_s: float
+    def __init__(self) -> None: ...
+    @property
+    def ok(self) -> bool: ...
+    @property
+    def valid_ratio(self) -> float: ...
+
 class Motor:
     @staticmethod
     def __new__(type, *args, **kwargs):
@@ -350,9 +403,15 @@ class Motor:
     @staticmethod
     def get_limit_param(motor_type: MotorType) -> LimitParam:
         ...
-    def __init__(self, motor_type: MotorType, send_can_id: int, recv_can_id: int) -> None:
-        ...
+    @typing.overload
+    def __init__(self, motor_type: MotorType, send_can_id: int, recv_can_id: int) -> None: ...
+    @typing.overload
+    def __init__(self, limits: LimitParam, send_can_id: int, recv_can_id: int, motor_type: MotorType = ...) -> None: ...
     def get_motor_type(self) -> MotorType:
+        ...
+    def get_limits(self) -> LimitParam:
+        ...
+    def set_limits(self, limits: LimitParam) -> None:
         ...
     def get_param(self, rid: int) -> float:
         ...
@@ -410,6 +469,7 @@ class MotorStateResult:
         ...
 class MotorType(enum.Enum):
     COUNT = ...
+    UNKNOWN = ...
     DM10010 = ...
     DM10010L = ...
     DM3507 = ...
@@ -423,6 +483,38 @@ class MotorType(enum.Enum):
     DMG6220 = ...
     DMH3510 = ...
     DMH6215 = ...
+class MotorIdentityConfidence(enum.Enum):
+    UNKNOWN = ...
+    PROBABLE = ...
+    EXACT = ...
+class MotorIdentityRegisters:
+    hw_ver: int | None
+    sw_ver: int | None
+    sn: int | None
+    npp: int | None
+    sub_ver: int | None
+    rs: float | None
+    ls: float | None
+    flux: float | None
+    gr: float | None
+    pmax: float | None
+    vmax: float | None
+    tmax: float | None
+    def __init__(self) -> None: ...
+class MotorIdentityResult:
+    send_can_id: int
+    responded: bool
+    protocol_limits: LimitParam | None
+    protocol_family: str
+    motor_type: MotorType | None
+    confidence: MotorIdentityConfidence
+    model_name: str
+    reason: str
+    hw_version_ascii: str
+    sw_version_ascii: str
+    serial_ascii: str
+    registers: MotorIdentityRegisters
+    def __init__(self) -> None: ...
 class MotorVariable(enum.Enum):
     ACC = ...
     COUNT = ...
@@ -492,11 +584,17 @@ class DamiaoCAN:
         ...
     def init_motors(self, motor_types: collections.abc.Sequence[MotorType], send_can_ids: collections.abc.Sequence[int], recv_can_ids: collections.abc.Sequence[int], control_modes: collections.abc.Sequence[ControlMode] = ...) -> None:
         ...
+    def init_motors_with_limits(self, limit_params: collections.abc.Sequence[LimitParam], send_can_ids: collections.abc.Sequence[int], recv_can_ids: collections.abc.Sequence[int], control_modes: collections.abc.Sequence[ControlMode] = ...) -> None:
+        ...
+    def set_motor_limits_one(self, index: int, limits: LimitParam) -> None:
+        ...
     def mit_control_all(self, mit_params: collections.abc.Sequence[MITParam]) -> None:
         ...
     def mit_control_one(self, index: int, mit_param: MITParam) -> None:
         ...
     def exchange_mit(self, index: int, mit_param: MITParam, timeout_us: int = 1000) -> MITExchangeSample:
+        ...
+    def exchange_posvel(self, index: int, posvel_param: PosVelParam, timeout_us: int = 500) -> PosVelExchangeSample:
         ...
     def posforce_control_all(self, posforce_params: collections.abc.Sequence[PosForceParam]) -> None:
         ...
@@ -509,6 +607,8 @@ class DamiaoCAN:
     def query_param_all(self, rid: int) -> None:
         ...
     def query_param_one(self, index: int, rid: int) -> None:
+        ...
+    def probe_motor_identity(self, send_can_id: int, timeout_us: int = 5000) -> MotorIdentityResult:
         ...
     def recv_all(self, timeout_us: int = 500) -> DamiaoCANRecvResult:
         ...
@@ -662,6 +762,8 @@ class DamiaoCANGroup:
     def recv_all(self, timeout_us: int = 500) -> DamiaoCANGroupRecvResult:
         ...
 def run_mit_torque_chirp(device: DamiaoCAN, motor_index: int, config: MITTorqueSweepConfig) -> MITTorqueSweepResult:
+    ...
+def run_position_sinestream(device: DamiaoCAN, motor_index: int, config: PositionSweepConfig) -> PositionSweepResult:
     ...
 
 ACC: MotorVariable  # value = MotorVariable.ACC
