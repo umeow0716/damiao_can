@@ -9,7 +9,7 @@ import argparse
 import sys
 from typing import Sequence
 
-from . import drop_test, probe, set_baudrate, set_zero, workflow
+from . import drop_test, probe, set_baudrate, set_zero
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -25,11 +25,6 @@ Range commands (set-zero, set-baudrate, drop-test):
   --to ID                 Last motor send ID, inclusive
                           recv_id is always send_id + 0x10
 
-Identification command:
-  identify -i IFACE --id ID
-                          Run the complete four-stage workflow
-                          friction -> breakaway -> envelope -> FRF
-
 Common optional interface settings:
   --no-fd                 Disable host CAN-FD. Default: FD enabled
   --bitrate RATE          Host nominal bitrate. Default: 1M
@@ -41,7 +36,6 @@ Commands:
   set-baudrate   Change and save motor CAN baudrate
   drop-test      Measure per-motor response packet loss
   probe          Read identity registers and infer motor type
-  identify       Run the four-stage mechanical identification workflow
 
 Examples:
   # Set zero on can0, host defaults to CAN-FD 1M/5M
@@ -62,9 +56,6 @@ Examples:
 
   # Probe motor identity without pre-selecting MotorType
   python -m damiao_can probe -i can0 --from 0x01 --to 0x08
-
-  # Run the complete mechanical identification workflow
-  python -m damiao_can identify -i can0 --id 0x01
 """,
     )
     subparsers = parser.add_subparsers(
@@ -74,7 +65,6 @@ Examples:
     set_baudrate.register(subparsers)
     drop_test.register(subparsers)
     probe.register(subparsers)
-    workflow.register(subparsers)
     return parser
 
 
