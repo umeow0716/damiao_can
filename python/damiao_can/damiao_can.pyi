@@ -5,7 +5,7 @@ from __future__ import annotations
 import collections.abc
 import enum
 import typing
-__all__: list[str] = ['ACC', 'MotorComponent', 'CANDevice', 'CANDeviceCollection', 'CANPacket', 'CANSocket', 'CANSocketException', 'COUNT', 'UNKNOWN', 'CTRL_MODE', 'CallbackMode', 'CanFdFrame', 'CanFrame', 'CanPacketDecoder', 'CanPacketEncoder', 'ControlMode', 'DEC', 'DM10010', 'DM10010L', 'DM3507', 'DM4310', 'DM4310_48V', 'DM4340', 'DM4340_48V', 'DM6006', 'DM8006', 'DM8009', 'DMDeviceCollection', 'DMG6220', 'DMH3510', 'DMH6215', 'Damp', 'Deta', 'ESC_ID', 'Flux', 'GREF', 'Gr', 'IGNORE', 'IQ_c1', 'I_BW', 'Inertia', 'KI_APR', 'KI_ASR', 'KP_APR', 'KP_ASR', 'KT_Value', 'LS', 'LimitParam', 'MAX_SPD', 'MIT', 'MITParam', 'MITExchangeSample', 'PosVelExchangeSample', 'MST_ID', 'Motor', 'MotorDeviceCan', 'MotorStateResult', 'MotorType', 'MotorIdentityConfidence', 'MotorIdentityRegisters', 'MotorIdentityResult', 'MotorVariable', 'NPP', 'OC_Value', 'OT_Value', 'OV_Value', 'DamiaoCAN', 'DamiaoCANGroup', 'DamiaoCANGroupRecvResult', 'DamiaoCANRecvResult', 'PARAM', 'PMAX', 'POS_FORCE', 'POS_VEL', 'ParamResult', 'PosForceParam', 'PosVelParam', 'VelParam', 'Rs', 'SN', 'STATE', 'TIMEOUT', 'TMAX', 'UV_Value', 'VEL', 'VL_c1', 'VMAX', 'V_BW', 'can_br', 'dir', 'hw_ver', 'k1', 'k2', 'm_off', 'p_m', 'sub_ver', 'sw_ver', 'u_off', 'v_off', 'xout']
+__all__: list[str] = ['ACC', 'MotorComponent', 'CANDevice', 'CANDeviceCollection', 'CANPacket', 'CANSocket', 'CANSocketException', 'COUNT', 'UNKNOWN', 'CTRL_MODE', 'CallbackMode', 'CanFdFrame', 'CanFrame', 'CanPacketDecoder', 'CanPacketEncoder', 'ControlMode', 'DEC', 'DM10010', 'DM10010L', 'DM3507', 'DM4310', 'DM4310_48V', 'DM4340', 'DM4340_48V', 'DM6006', 'DM8006', 'DM8009', 'DMDeviceCollection', 'DMG6220', 'DMH3510', 'DMH6215', 'Damp', 'Deta', 'ESC_ID', 'Flux', 'GREF', 'Gr', 'IGNORE', 'IQ_c1', 'I_BW', 'Inertia', 'KI_APR', 'KI_ASR', 'KP_APR', 'KP_ASR', 'KT_Value', 'LS', 'LimitParam', 'MAX_SPD', 'MIT', 'MITParam', 'MST_ID', 'Motor', 'MotorDeviceCan', 'MotorStateResult', 'MotorType', 'MotorIdentityConfidence', 'MotorIdentityRegisters', 'MotorIdentityResult', 'MotorVariable', 'NPP', 'OC_Value', 'OT_Value', 'OV_Value', 'DamiaoCAN', 'DamiaoCANGroup', 'DamiaoCANGroupRecvResult', 'DamiaoCANRecvResult', 'PARAM', 'PMAX', 'POS_FORCE', 'POS_VEL', 'ParamResult', 'PosForceParam', 'PosVelParam', 'VelParam', 'Rs', 'SN', 'STATE', 'TIMEOUT', 'TMAX', 'UV_Value', 'VEL', 'VL_c1', 'VMAX', 'V_BW', 'can_br', 'dir', 'hw_ver', 'k1', 'k2', 'm_off', 'p_m', 'sub_ver', 'sw_ver', 'u_off', 'v_off', 'xout']
 class MotorComponent(DMDeviceCollection):
     @staticmethod
     def __new__(type, *args, **kwargs):
@@ -300,35 +300,6 @@ class MITParam:
     @typing.overload
     def __init__(self, kp: float, kd: float, q: float, dq: float, tau: float) -> None:
         ...
-class MITExchangeSample:
-    tx_timestamp_ns: int
-    rx_timestamp_ns: int
-    command_tau: float
-    position: float
-    velocity: float
-    torque: float
-    t_mos: int
-    t_rotor: int
-    valid: bool
-    def __init__(self) -> None: ...
-    @property
-    def round_trip_ns(self) -> int: ...
-
-class PosVelExchangeSample:
-    tx_timestamp_ns: int
-    rx_timestamp_ns: int
-    command_position: float
-    command_velocity_limit: float
-    position: float
-    velocity: float
-    torque: float
-    t_mos: int
-    t_rotor: int
-    valid: bool
-    def __init__(self) -> None: ...
-    @property
-    def round_trip_ns(self) -> int: ...
-
 class Motor:
     @staticmethod
     def __new__(type, *args, **kwargs):
@@ -527,10 +498,6 @@ class DamiaoCAN:
     def mit_control_all(self, mit_params: collections.abc.Sequence[MITParam]) -> None:
         ...
     def mit_control_one(self, index: int, mit_param: MITParam) -> None:
-        ...
-    def exchange_mit(self, index: int, mit_param: MITParam, timeout_us: int = 1000) -> MITExchangeSample:
-        ...
-    def exchange_posvel(self, index: int, posvel_param: PosVelParam, timeout_us: int = 500) -> PosVelExchangeSample:
         ...
     def posforce_control_all(self, posforce_params: collections.abc.Sequence[PosForceParam]) -> None:
         ...

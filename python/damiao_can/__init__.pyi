@@ -25,8 +25,6 @@ from damiao_can.damiao_can import ControlMode
 from damiao_can.damiao_can import DMDeviceCollection
 from damiao_can.damiao_can import LimitParam
 from damiao_can.damiao_can import MITParam
-from damiao_can.damiao_can import MITExchangeSample
-from damiao_can.damiao_can import PosVelExchangeSample
 from damiao_can.damiao_can import Motor
 from damiao_can.damiao_can import MotorLimitResolutionError
 from damiao_can.damiao_can import MotorDeviceCan
@@ -57,8 +55,6 @@ __all__: list[str] = [
     "CanFrame",
     "CanFdFrame",
     "MITParam",
-    "MITExchangeSample",
-    "PosVelExchangeSample",
     "PosVelParam",
     "VelParam",
     "PosForceParam",

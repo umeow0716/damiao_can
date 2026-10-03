@@ -496,34 +496,6 @@ NB_MODULE(damiao_can, m) {
         .def_ro("serial_ascii", &MotorIdentityResult::serial_ascii)
         .def_ro("registers", &MotorIdentityResult::registers);
 
-    // Synchronous command/response samples used by measurement tooling.
-    nb::class_<MITExchangeSample>(m, "MITExchangeSample")
-        .def(nb::init<>())
-        .def_ro("tx_timestamp_ns", &MITExchangeSample::tx_timestamp_ns)
-        .def_ro("rx_timestamp_ns", &MITExchangeSample::rx_timestamp_ns)
-        .def_ro("command_tau", &MITExchangeSample::command_tau)
-        .def_ro("position", &MITExchangeSample::position)
-        .def_ro("velocity", &MITExchangeSample::velocity)
-        .def_ro("torque", &MITExchangeSample::torque)
-        .def_ro("t_mos", &MITExchangeSample::t_mos)
-        .def_ro("t_rotor", &MITExchangeSample::t_rotor)
-        .def_ro("valid", &MITExchangeSample::valid)
-        .def_prop_ro("round_trip_ns", &MITExchangeSample::round_trip_ns);
-
-    nb::class_<PosVelExchangeSample>(m, "PosVelExchangeSample")
-        .def(nb::init<>())
-        .def_ro("tx_timestamp_ns", &PosVelExchangeSample::tx_timestamp_ns)
-        .def_ro("rx_timestamp_ns", &PosVelExchangeSample::rx_timestamp_ns)
-        .def_ro("command_position", &PosVelExchangeSample::command_position)
-        .def_ro("command_velocity_limit", &PosVelExchangeSample::command_velocity_limit)
-        .def_ro("position", &PosVelExchangeSample::position)
-        .def_ro("velocity", &PosVelExchangeSample::velocity)
-        .def_ro("torque", &PosVelExchangeSample::torque)
-        .def_ro("t_mos", &PosVelExchangeSample::t_mos)
-        .def_ro("t_rotor", &PosVelExchangeSample::t_rotor)
-        .def_ro("valid", &PosVelExchangeSample::valid)
-        .def_prop_ro("round_trip_ns", &PosVelExchangeSample::round_trip_ns);
-
     // ============================================================================
     // TOP-LEVEL COMPONENT CLASSES
     // ============================================================================
@@ -639,11 +611,6 @@ NB_MODULE(damiao_can, m) {
         .def("set_control_mode_all", &DamiaoCAN::set_control_mode_all, nb::arg("mode"))
         .def("mit_control_one", &DamiaoCAN::mit_control_one, nb::arg("index"), nb::arg("mit_param"))
         .def("mit_control_all", &DamiaoCAN::mit_control_all, nb::arg("mit_params"))
-        .def("exchange_mit", &DamiaoCAN::exchange_mit, nb::arg("index"), nb::arg("mit_param"),
-             nb::arg("timeout_us") = 1000, nb::call_guard<nb::gil_scoped_release>())
-        .def("exchange_posvel", &DamiaoCAN::exchange_posvel, nb::arg("index"),
-             nb::arg("posvel_param"), nb::arg("timeout_us") = 500,
-             nb::call_guard<nb::gil_scoped_release>())
         .def("posvel_control_one", &DamiaoCAN::posvel_control_one, nb::arg("index"),
              nb::arg("posvel_param"))
         .def("posvel_control_all", &DamiaoCAN::posvel_control_all, nb::arg("posvel_params"))
