@@ -76,6 +76,9 @@ jobs:
       - name: "C++: Build"
         run: |
           ninja -C ../build
+      - name: "C++: Test"
+        run: |
+          ctest --test-dir ../build --output-on-failure
       - name: Install
         run: |
           ninja -C ../build install
@@ -97,3 +100,4 @@ jobs:
       - name: "Python: Test"
         run: |
           python3 -c "import damiao_can"
+          python3 tests/test_sysid_binding.py

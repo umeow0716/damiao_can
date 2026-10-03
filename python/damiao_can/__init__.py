@@ -27,6 +27,28 @@ __author__ = "Enactic, Inc."
 
 # Direct export of C++ classes - no wrappers
 __all__ = [
+    # Passive System Identification telemetry v1
+    "SysIdOperation",
+    "SysIdResult",
+    "SysIdFrame",
+    "SysIdAck",
+    "SysIdInformation",
+    "SysIdSample",
+    "SysIdMeasurement",
+    "SysIdReply",
+    "SysIdStartResult",
+    "SysIdDiagnostics",
+    "SysIdStopResult",
+    "SysIdProtocolError",
+    "SysIdTimeoutError",
+    "SysIdSessionError",
+    "SystemIdentification",
+    "decode_sysid_ack",
+    "decode_sysid_information",
+    "decode_sysid_sample",
+    "encode_sysid_request",
+    "sysid_command_sequence_distance",
+
     # Enums
     "MotorType",
     "MotorIdentityConfidence",

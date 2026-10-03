@@ -110,7 +110,8 @@ function(dcp_ensure_damiao_can)
 endfunction()
 dcp_ensure_damiao_can()
 
-nanobind_add_module(damiao_can_python src/damiao_can.cpp)
+nanobind_add_module(damiao_can_python src/damiao_can.cpp
+                    src/system_identification.cpp)
 set_target_properties(damiao_can_python PROPERTIES OUTPUT_NAME "damiao_can")
 target_link_libraries(damiao_can_python PRIVATE DamiaoCAN::damiao_can)
 install(TARGETS damiao_can_python LIBRARY DESTINATION "damiao_can")

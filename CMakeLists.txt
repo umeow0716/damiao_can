@@ -38,6 +38,7 @@ add_library(
   src/damiao_can/canbus/can_device_collection.cpp
   src/damiao_can/canbus/can_helper.cpp
   src/damiao_can/canbus/can_socket.cpp
+  src/damiao_can/sysid/system_identification.cpp
   src/damiao_can/damiao_motor/dm_motor.cpp
   src/damiao_can/damiao_motor/dm_motor_control.cpp
   src/damiao_can/damiao_motor/dm_motor_device.cpp
@@ -65,6 +66,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.23)
            include/damiao_can/canbus/can_device_collection.hpp
            include/damiao_can/canbus/can_helper.hpp
            include/damiao_can/canbus/can_socket.hpp
+           include/damiao_can/sysid/system_identification.hpp
            include/damiao_can/damiao_motor/dm_motor.hpp
            include/damiao_can/damiao_motor/dm_motor_constants.hpp
            include/damiao_can/damiao_motor/dm_motor_control.hpp
@@ -123,5 +125,14 @@ install(TARGETS damiao-can-demo DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Add tests
 if(BUILD_TESTING)
-  # add_subdirectory(test)
+  add_executable(test-system-identification
+                 tests/test_system_identification.cpp)
+  target_link_libraries(test-system-identification damiao_can)
+  add_test(NAME system-identification COMMAND test-system-identification)
+  add_executable(test-can-socket-mixed tests/test_can_socket_mixed.cpp)
+  target_link_libraries(test-can-socket-mixed damiao_can)
+  target_link_options(
+    test-can-socket-mixed PRIVATE
+    -Wl,--wrap=socket,--wrap=ioctl,--wrap=bind,--wrap=setsockopt,--wrap=read)
+  add_test(NAME can-socket-mixed COMMAND test-can-socket-mixed)
 endif()

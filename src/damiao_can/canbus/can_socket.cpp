@@ -157,8 +157,15 @@ bool CANSocket::read_can_frame(can_frame& frame) {
 }
 
 bool CANSocket::read_canfd_frame(canfd_frame& frame) {
+    frame = {};
     const ssize_t bytes_read = read_raw_frame(&frame, sizeof(frame));
     if (bytes_read < 0) return false;
+    // FD-enabled SocketCAN sockets also receive classic CAN frames. Their ID,
+    // length and payload have the same layout; classic padding is not FD flags.
+    if (bytes_read == CAN_MTU) {
+        frame.flags = 0;
+        return true;
+    }
     if (bytes_read != static_cast<ssize_t>(sizeof(frame))) {
         throw CANSocketException("unexpected CAN-FD frame size: " + std::to_string(bytes_read) +
                                  " bytes");

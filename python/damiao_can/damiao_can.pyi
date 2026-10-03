@@ -738,3 +738,171 @@ xout: MotorVariable  # value = MotorVariable.xout
 
 class MotorLimitResolutionError(RuntimeError):
     ...
+
+
+# Passive System Identification telemetry v1; wire values are never host-adjusted.
+class SysIdOperation(enum.Enum):
+    START = ...
+    STOP = ...
+    HEARTBEAT = ...
+    INFO = ...
+    STATUS = ...
+
+class SysIdResult(enum.Enum):
+    ACCEPTED = ...
+    BAD_VERSION = ...
+    BAD_ARGUMENT = ...
+    BUSY = ...
+    TRANSPORT_NOT_READY = ...
+    UNSUPPORTED_OPERATION = ...
+    MEASUREMENTS_NOT_READY = ...
+
+class SysIdProtocolError(RuntimeError):
+    ...
+
+class SysIdTimeoutError(RuntimeError):
+    ...
+
+class SysIdSessionError(RuntimeError):
+    ...
+
+class SysIdFrame:
+    def __init__(self) -> None: ...
+    can_id: int
+    fd: bool
+    flags: int
+    payload: bytes
+    host_receive_time_ns: int
+
+class SysIdAck:
+    version: int
+    operation: SysIdOperation
+    result: SysIdResult
+    request_sequence: int
+    raw: SysIdFrame
+
+class SysIdInformation:
+    version: int
+    message_type: int
+    node: int
+    active: bool
+    request_sequence: int
+    session_id: int
+    control_tick: int
+    sample_drop_count: int
+    request_drop_count: int
+    tx_retry_count: int
+    next_sample_sequence: int
+    output_torque_constant: float
+    gear_ratio: float
+    factory_velocity_previous_weight: float
+    iq_filter_beta: float
+    current_limit: float
+    accepted_command_sequence: int
+    applied_command_sequence: int
+    sample_period_ticks: int
+    stop_reason: int
+    mode: int
+    fault: int
+    raw: SysIdFrame
+
+class SysIdSample:
+    version: int
+    node: int
+    flags: int
+    sequence: int
+    endpoint_tick: int
+    applied_command_sequence: int
+    sample_drop_count: int
+    position: float
+    velocity: float
+    averaged_iq: float
+    torque_estimate: float
+    mit_feedforward_torque: float
+    instantaneous_iq: float
+    applied_command_tick: int
+    temperature: float
+    velocity_tick: int
+    position_publication_tick: int
+    interval_ticks: int
+    mode: int
+    fault: int
+    raw: SysIdFrame
+    @property
+    def armed(self) -> bool: ...
+    @property
+    def current_saturated(self) -> bool: ...
+    @property
+    def voltage_saturated(self) -> bool: ...
+    @property
+    def warmup(self) -> bool: ...
+    @property
+    def command_unknown(self) -> bool: ...
+
+class SysIdMeasurement:
+    sample: SysIdSample
+    session_id: int
+    timeline_epoch: int
+    unwrapped_sequence: int
+    unwrapped_endpoint_tick: int
+    sequence_gap: int
+    position: float
+    velocity: float
+    averaged_iq: float
+    torque_estimate: float
+    mit_feedforward_torque: float
+    instantaneous_iq: float
+
+class SysIdReply:
+    ack: SysIdAck | None
+    information: SysIdInformation | None
+    @property
+    def accepted(self) -> bool: ...
+
+class SysIdStartResult:
+    reply: SysIdReply
+    recovery_status: SysIdInformation | None
+    session_id: int
+    recovered: bool
+    accepted: bool
+
+class SysIdDiagnostics:
+    host_sample_dropped: int
+    host_reply_dropped: int
+    host_other_dropped: int
+    socket_dropped: int
+    invalid_frames: int
+    unassociated_samples: int
+    session_discarded_samples: int
+    sequence_gaps: int
+    timeline_resets: int
+
+class SysIdStopResult:
+    reply: SysIdReply
+    samples: list[SysIdMeasurement]
+    final_status: SysIdInformation
+    drain_limit_reached: bool
+
+class SystemIdentification:
+    def __init__(self, interface: str, node: int, offset: float = 0.0, reversed: bool = False, queue_capacity: int = 2048) -> None: ...
+    def info(self, timeout_us: int = 100000) -> SysIdReply: ...
+    def status(self, timeout_us: int = 100000) -> SysIdReply: ...
+    def start(self, rate_hz: int = 500, timeout_us: int = 100000) -> SysIdStartResult: ...
+    def heartbeat(self, timeout_us: int = 100000) -> SysIdReply: ...
+    def stop(self, timeout_us: int = 100000, drain_timeout_us: int = 50000, max_drain_frames: int = 4096) -> SysIdStopResult: ...
+    def poll(self, timeout_us: int = 0, max_frames: int = 256) -> int: ...
+    def read_samples(self, timeout_us: int = 0, max_frames: int = 256) -> list[SysIdMeasurement]: ...
+    def take_replies(self) -> list[SysIdReply]: ...
+    def take_other_frames(self) -> list[SysIdFrame]: ...
+    def diagnostics(self) -> SysIdDiagnostics: ...
+    @property
+    def owned_session(self) -> int | None: ...
+    def close(self) -> None: ...
+    def __enter__(self) -> SystemIdentification: ...
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None: ...
+
+def decode_sysid_ack(frame: SysIdFrame) -> SysIdAck: ...
+def decode_sysid_information(frame: SysIdFrame) -> SysIdInformation: ...
+def decode_sysid_sample(frame: SysIdFrame) -> SysIdSample: ...
+def encode_sysid_request(node: int, operation: SysIdOperation, argument: int, request_sequence: int) -> bytes: ...
+def sysid_command_sequence_distance(previous: int, current: int) -> int: ...

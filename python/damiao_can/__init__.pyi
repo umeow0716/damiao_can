@@ -6,6 +6,26 @@ This package provides Python bindings for the DamiaoCAN motor control system,
 allowing you to control DAMIAO motors through SocketCAN.
 """
 from __future__ import annotations
+from damiao_can.damiao_can import SysIdOperation
+from damiao_can.damiao_can import SysIdResult
+from damiao_can.damiao_can import SysIdFrame
+from damiao_can.damiao_can import SysIdAck
+from damiao_can.damiao_can import SysIdInformation
+from damiao_can.damiao_can import SysIdSample
+from damiao_can.damiao_can import SysIdMeasurement
+from damiao_can.damiao_can import SysIdReply
+from damiao_can.damiao_can import SysIdStartResult
+from damiao_can.damiao_can import SysIdDiagnostics
+from damiao_can.damiao_can import SysIdStopResult
+from damiao_can.damiao_can import SysIdProtocolError
+from damiao_can.damiao_can import SysIdTimeoutError
+from damiao_can.damiao_can import SysIdSessionError
+from damiao_can.damiao_can import SystemIdentification
+from damiao_can.damiao_can import decode_sysid_ack
+from damiao_can.damiao_can import decode_sysid_information
+from damiao_can.damiao_can import decode_sysid_sample
+from damiao_can.damiao_can import encode_sysid_request
+from damiao_can.damiao_can import sysid_command_sequence_distance
 from damiao_can.damiao_can import MotorComponent
 from damiao_can.damiao_can import CANDevice
 from damiao_can.damiao_can import CANDeviceCollection
@@ -41,6 +61,26 @@ from damiao_can.damiao_can import PosVelParam
 from damiao_can.damiao_can import VelParam
 from . import damiao_can
 __all__: list[str] = [
+    "SysIdOperation",
+    "SysIdResult",
+    "SysIdFrame",
+    "SysIdAck",
+    "SysIdInformation",
+    "SysIdSample",
+    "SysIdMeasurement",
+    "SysIdReply",
+    "SysIdStartResult",
+    "SysIdDiagnostics",
+    "SysIdStopResult",
+    "SysIdProtocolError",
+    "SysIdTimeoutError",
+    "SysIdSessionError",
+    "SystemIdentification",
+    "decode_sysid_ack",
+    "decode_sysid_information",
+    "decode_sysid_sample",
+    "encode_sysid_request",
+    "sysid_command_sequence_distance",
     "MotorType",
     "MotorVariable",
     "CallbackMode",

@@ -41,6 +41,8 @@ using namespace damiao_can::can::socket;
 
 namespace nb = nanobind;
 
+void bind_system_identification(nb::module_& m);
+
 namespace {
 
 std::vector<double> normalize_offsets(const nb::object& offset) {
@@ -70,6 +72,7 @@ std::vector<bool> normalize_reversed(const nb::object& reversed) {
 }  // namespace
 
 NB_MODULE(damiao_can, m) {
+    bind_system_identification(m);
     m.doc() = "Damiao CAN Python bindings for motor control via SocketCAN";
 
     nb::exception<MotorLimitResolutionError>(m, "MotorLimitResolutionError", PyExc_RuntimeError);
