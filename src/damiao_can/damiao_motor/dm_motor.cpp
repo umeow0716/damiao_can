@@ -21,12 +21,14 @@
 namespace damiao_can::damiao_motor {
 
 // Constructor
-Motor::Motor(MotorType motor_type, uint32_t send_can_id, uint32_t recv_can_id, double offset)
+Motor::Motor(MotorType motor_type, uint32_t send_can_id, uint32_t recv_can_id, double offset,
+             bool reversed)
     : send_can_id_(send_can_id),
       recv_can_id_(recv_can_id),
       motor_type_(motor_type),
       limit_param_(get_limit_param(motor_type)),
       offset_(offset),
+      reversed_(reversed),
       enabled_(false),
       state_q_(0.0),
       state_dq_(0.0),
@@ -39,12 +41,13 @@ Motor::Motor(MotorType motor_type, uint32_t send_can_id, uint32_t recv_can_id, d
 }
 
 Motor::Motor(const LimitParam& limit_param, uint32_t send_can_id, uint32_t recv_can_id,
-             MotorType motor_type, double offset)
+             MotorType motor_type, double offset, bool reversed)
     : send_can_id_(send_can_id),
       recv_can_id_(recv_can_id),
       motor_type_(motor_type),
       limit_param_(limit_param),
       offset_(offset),
+      reversed_(reversed),
       enabled_(false),
       state_q_(0.0),
       state_dq_(0.0),

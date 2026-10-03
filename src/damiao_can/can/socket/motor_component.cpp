@@ -27,7 +27,8 @@ void MotorComponent::init_motor_devices(const std::vector<damiao_motor::MotorTyp
                                         const std::vector<canid_t>& send_can_ids,
                                         const std::vector<canid_t>& recv_can_ids, bool use_fd,
                                         const std::vector<damiao_motor::ControlMode>& control_modes,
-                                        const std::vector<double>& offsets) {
+                                        const std::vector<double>& offsets,
+                                        const std::vector<bool>& reversed) {
     if (!control_modes.empty() && control_modes.size() != 1 &&
         control_modes.size() != motor_types.size()) {
         throw std::invalid_argument(
@@ -35,6 +36,9 @@ void MotorComponent::init_motor_devices(const std::vector<damiao_motor::MotorTyp
     }
     if (!offsets.empty() && offsets.size() != motor_types.size()) {
         throw std::invalid_argument("Offsets vector must match the number of motors.");
+    }
+    if (!reversed.empty() && reversed.size() != motor_types.size()) {
+        throw std::invalid_argument("Reversed vector must match the number of motors.");
     }
 
     // Reserve space to prevent vector reallocation that would invalidate motor
@@ -44,7 +48,8 @@ void MotorComponent::init_motor_devices(const std::vector<damiao_motor::MotorTyp
     for (size_t i = 0; i < motor_types.size(); i++) {
         // First, create and store the motor in the vector
         const double offset = offsets.empty() ? 0.0 : offsets[i];
-        motors_.emplace_back(motor_types[i], send_can_ids[i], recv_can_ids[i], offset);
+        motors_.emplace_back(motor_types[i], send_can_ids[i], recv_can_ids[i], offset,
+                             !reversed.empty() && reversed[i]);
         // Then create the device with a reference to the stored motor
         auto motor_device =
             std::make_shared<damiao_motor::DMCANDevice>(motors_.back(), CAN_SFF_MASK, use_fd);
@@ -65,20 +70,20 @@ void MotorComponent::init_motor_devices(const std::vector<damiao_motor::MotorTyp
 void MotorComponent::init_motor_devices_with_limits(
     const std::vector<damiao_motor::LimitParam>& limit_params,
     const std::vector<canid_t>& send_can_ids, const std::vector<canid_t>& recv_can_ids, bool use_fd,
-    const std::vector<damiao_motor::ControlMode>& control_modes,
-    const std::vector<double>& offsets) {
+    const std::vector<damiao_motor::ControlMode>& control_modes, const std::vector<double>& offsets,
+    const std::vector<bool>& reversed) {
     std::vector<damiao_motor::MotorType> motor_types(limit_params.size(),
                                                      damiao_motor::MotorType::UNKNOWN);
     init_motor_devices_resolved(limit_params, motor_types, send_can_ids, recv_can_ids, use_fd,
-                                control_modes, offsets);
+                                control_modes, offsets, reversed);
 }
 
 void MotorComponent::init_motor_devices_resolved(
     const std::vector<damiao_motor::LimitParam>& limit_params,
     const std::vector<damiao_motor::MotorType>& motor_types,
     const std::vector<canid_t>& send_can_ids, const std::vector<canid_t>& recv_can_ids, bool use_fd,
-    const std::vector<damiao_motor::ControlMode>& control_modes,
-    const std::vector<double>& offsets) {
+    const std::vector<damiao_motor::ControlMode>& control_modes, const std::vector<double>& offsets,
+    const std::vector<bool>& reversed) {
     if (limit_params.size() != motor_types.size() || limit_params.size() != send_can_ids.size() ||
         limit_params.size() != recv_can_ids.size()) {
         throw std::invalid_argument(
@@ -93,12 +98,15 @@ void MotorComponent::init_motor_devices_resolved(
     if (!offsets.empty() && offsets.size() != limit_params.size()) {
         throw std::invalid_argument("Offsets vector must match the number of motors.");
     }
+    if (!reversed.empty() && reversed.size() != limit_params.size()) {
+        throw std::invalid_argument("Reversed vector must match the number of motors.");
+    }
 
     motors_.reserve(limit_params.size());
     for (size_t i = 0; i < limit_params.size(); ++i) {
         const double offset = offsets.empty() ? 0.0 : offsets[i];
         motors_.emplace_back(limit_params[i], send_can_ids[i], recv_can_ids[i], motor_types[i],
-                             offset);
+                             offset, !reversed.empty() && reversed[i]);
         auto motor_device =
             std::make_shared<damiao_motor::DMCANDevice>(motors_.back(), CAN_SFF_MASK, use_fd);
         get_device_collection().add_device(motor_device);

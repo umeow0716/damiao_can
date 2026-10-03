@@ -55,6 +55,18 @@ std::vector<double> normalize_offsets(const nb::object& offset) {
     return normalized;
 }
 
+std::vector<bool> normalize_reversed(const nb::object& reversed) {
+    std::vector<bool> normalized;
+    if (reversed.is_none()) {
+        return normalized;
+    }
+
+    for (nb::handle value : nb::cast<nb::sequence>(reversed)) {
+        normalized.push_back(value.is_none() ? false : nb::cast<bool>(value));
+    }
+    return normalized;
+}
+
 }  // namespace
 
 NB_MODULE(damiao_can, m) {
@@ -248,11 +260,15 @@ NB_MODULE(damiao_can, m) {
 
     // Motor class
     nb::class_<Motor>(m, "Motor")
-        .def(nb::init<MotorType, uint32_t, uint32_t>(), nb::arg("motor_type"),
-             nb::arg("send_can_id"), nb::arg("recv_can_id"))
-        .def(nb::init<const LimitParam&, uint32_t, uint32_t, MotorType>(), nb::arg("limits"),
-             nb::arg("send_can_id"), nb::arg("recv_can_id"),
-             nb::arg("motor_type") = MotorType::UNKNOWN)
+        .def(nb::init<MotorType, uint32_t, uint32_t, double, bool>(), nb::arg("motor_type"),
+             nb::arg("send_can_id"), nb::arg("recv_can_id"), nb::arg("offset") = 0.0,
+             nb::arg("reversed") = false)
+        .def(nb::init<const LimitParam&, uint32_t, uint32_t, MotorType, double, bool>(),
+             nb::arg("limits"), nb::arg("send_can_id"), nb::arg("recv_can_id"),
+             nb::arg("motor_type") = MotorType::UNKNOWN, nb::arg("offset") = 0.0,
+             nb::arg("reversed") = false)
+        .def("get_offset", &Motor::get_offset)
+        .def("is_reversed", &Motor::is_reversed)
         .def("get_position", &Motor::get_position)
         .def("get_velocity", &Motor::get_velocity)
         .def("get_torque", &Motor::get_torque)
@@ -538,13 +554,15 @@ NB_MODULE(damiao_can, m) {
             "init_motor_devices",
             [](MotorComponent& self, const std::vector<MotorType>& motor_types,
                const std::vector<uint32_t>& send_can_ids, const std::vector<uint32_t>& recv_can_ids,
-               bool use_fd, const std::vector<ControlMode>& control_modes, nb::object offset) {
+               bool use_fd, const std::vector<ControlMode>& control_modes, nb::object offset,
+               nb::object reversed) {
                 self.init_motor_devices(motor_types, send_can_ids, recv_can_ids, use_fd,
-                                        control_modes, normalize_offsets(offset));
+                                        control_modes, normalize_offsets(offset),
+                                        normalize_reversed(reversed));
             },
             nb::arg("motor_types"), nb::arg("send_can_ids"), nb::arg("recv_can_ids"),
             nb::arg("use_fd"), nb::arg("control_modes") = std::vector<ControlMode>{},
-            nb::arg("offset") = nb::none());
+            nb::arg("offset") = nb::none(), nb::arg("reversed") = nb::none());
 
     // DamiaoCAN class (main high-level interface)
     nb::class_<DamiaoCAN>(m, "DamiaoCAN")
@@ -554,7 +572,7 @@ NB_MODULE(damiao_can, m) {
             "init_motors",
             [](DamiaoCAN& self, const std::vector<uint32_t>& send_ids,
                const std::vector<uint32_t>& recv_ids, nb::object motor_types,
-               nb::object control_modes, nb::object offset) {
+               nb::object control_modes, nb::object offset, nb::object reversed) {
                 std::vector<std::optional<MotorType>> normalized_motor_types;
                 if (motor_types.is_none()) {
                     normalized_motor_types.resize(send_ids.size(), std::nullopt);
@@ -569,23 +587,28 @@ NB_MODULE(damiao_can, m) {
                 }
 
                 const auto normalized_offsets = normalize_offsets(offset);
+                const auto normalized_reversed = normalize_reversed(reversed);
 
                 nb::gil_scoped_release release;
                 self.init_motors(send_ids, recv_ids, normalized_motor_types,
-                                 normalized_control_modes, normalized_offsets);
+                                 normalized_control_modes, normalized_offsets, normalized_reversed);
             },
             nb::arg("send_ids"), nb::arg("recv_ids"), nb::arg("motor_types") = nb::none(),
-            nb::arg("control_modes") = nb::none(), nb::arg("offset") = nb::none())
+            nb::arg("control_modes") = nb::none(), nb::arg("offset") = nb::none(),
+            nb::arg("reversed") = nb::none())
         .def(
             "init_motors_with_limits",
             [](DamiaoCAN& self, const std::vector<LimitParam>& limit_params,
                const std::vector<uint32_t>& send_can_ids, const std::vector<uint32_t>& recv_can_ids,
-               const std::vector<ControlMode>& control_modes, nb::object offset) {
+               const std::vector<ControlMode>& control_modes, nb::object offset,
+               nb::object reversed) {
                 self.init_motors_with_limits(limit_params, send_can_ids, recv_can_ids,
-                                             control_modes, normalize_offsets(offset));
+                                             control_modes, normalize_offsets(offset),
+                                             normalize_reversed(reversed));
             },
             nb::arg("limit_params"), nb::arg("send_can_ids"), nb::arg("recv_can_ids"),
-            nb::arg("control_modes") = std::vector<ControlMode>{}, nb::arg("offset") = nb::none())
+            nb::arg("control_modes") = std::vector<ControlMode>{}, nb::arg("offset") = nb::none(),
+            nb::arg("reversed") = nb::none())
         .def("set_motor_limits_one", &DamiaoCAN::set_motor_limits_one, nb::arg("index"),
              nb::arg("limits"))
         .def("get_motors", &DamiaoCAN::get_motors)
