@@ -10,7 +10,7 @@ Please share it to [GitHub Issues](https://github.com/umeow0716/damiao_can/issue
 
 ## Did you write a patch?
 
-Please open a pull request with it!
+Please open a [pull request](https://github.com/umeow0716/damiao_can/compare) against the `main` branch of `umeow0716/damiao_can`!
 
 Please make sure to review [our license](https://github.com/umeow0716/damiao_can/blob/main/LICENSE.txt) before you open a pull request.
 
