@@ -38,14 +38,16 @@ CANPacket CanPacketEncoder::create_set_zero_command(const Motor& motor) {
 CANPacket CanPacketEncoder::create_mit_control_command(const Motor& motor,
                                                        const MITParam& mit_param) {
     auto raw_param = mit_param;
-    raw_param.q -= motor.get_offset();
+    raw_param.q = motor.get_direction() * (raw_param.q - motor.get_offset());
+    raw_param.dq *= motor.get_direction();
+    raw_param.tau *= motor.get_direction();
     return {motor.get_send_can_id(), pack_mit_control_data(motor.get_limit_param(), raw_param)};
 }
 
 CANPacket CanPacketEncoder::create_posvel_control_command(const Motor& motor,
                                                           const PosVelParam& posvel_param) {
     auto raw_param = posvel_param;
-    raw_param.q -= motor.get_offset();
+    raw_param.q = motor.get_direction() * (raw_param.q - motor.get_offset());
     // pos vel mode needs extra 0x100
     return {motor.get_send_can_id() + 0x100,
             pack_posvel_control_data(motor.get_motor_type(), raw_param)};
@@ -53,15 +55,17 @@ CANPacket CanPacketEncoder::create_posvel_control_command(const Motor& motor,
 
 CANPacket CanPacketEncoder::create_vel_control_command(const Motor& motor,
                                                        const VelParam& vel_param) {
+    auto raw_param = vel_param;
+    raw_param.dq *= motor.get_direction();
     // vel mode needs extra 0x200
     return {motor.get_send_can_id() + 0x200,
-            pack_vel_control_data(motor.get_motor_type(), vel_param)};
+            pack_vel_control_data(motor.get_motor_type(), raw_param)};
 }
 
 CANPacket CanPacketEncoder::create_posforce_control_command(const Motor& motor,
                                                             const PosForceParam& posforce_param) {
     auto raw_param = posforce_param;
-    raw_param.q -= motor.get_offset();
+    raw_param.q = motor.get_direction() * (raw_param.q - motor.get_offset());
     // pos force mode needs extra 0x300
     return {motor.get_send_can_id() + 0x300,
             pack_posforce_control_data(motor.get_motor_type(), raw_param)};

@@ -40,7 +40,7 @@ void DamiaoCAN::init_motors(const std::vector<uint32_t>& send_can_ids,
                             const std::vector<uint32_t>& recv_can_ids,
                             const std::vector<damiao_motor::MotorType>& motor_types,
                             const std::vector<damiao_motor::ControlMode>& control_modes,
-                            const std::vector<double>& offsets) {
+                            const std::vector<double>& offsets, const std::vector<bool>& reversed) {
     if (motor_types.size() != send_can_ids.size() || motor_types.size() != recv_can_ids.size()) {
         throw std::invalid_argument(
             "Motor types, send CAN IDs, and receive CAN IDs vectors must have the same size, "
@@ -50,7 +50,7 @@ void DamiaoCAN::init_motors(const std::vector<uint32_t>& send_can_ids,
     }
 
     motor_collection_->init_motor_devices(motor_types, send_can_ids, recv_can_ids, enable_fd_,
-                                          control_modes, offsets);
+                                          control_modes, offsets, reversed);
     register_motor_collection();
 }
 
@@ -58,7 +58,7 @@ void DamiaoCAN::init_motors(const std::vector<uint32_t>& send_can_ids,
                             const std::vector<uint32_t>& recv_can_ids,
                             const std::vector<std::optional<damiao_motor::MotorType>>& motor_types,
                             const std::vector<damiao_motor::ControlMode>& control_modes,
-                            const std::vector<double>& offsets) {
+                            const std::vector<double>& offsets, const std::vector<bool>& reversed) {
     std::vector<std::optional<damiao_motor::MotorType>> normalized_motor_types = motor_types;
     if (normalized_motor_types.empty()) {
         normalized_motor_types.resize(send_can_ids.size(), std::nullopt);
@@ -140,8 +140,8 @@ void DamiaoCAN::init_motors(const std::vector<uint32_t>& send_can_ids,
     }
 
     motor_collection_->init_motor_devices_resolved(resolved_limits, resolved_types, send_can_ids,
-                                                   recv_can_ids, enable_fd_, control_modes,
-                                                   offsets);
+                                                   recv_can_ids, enable_fd_, control_modes, offsets,
+                                                   reversed);
     register_motor_collection();
 }
 
@@ -149,13 +149,14 @@ void DamiaoCAN::init_motors_with_limits(const std::vector<damiao_motor::LimitPar
                                         const std::vector<uint32_t>& send_can_ids,
                                         const std::vector<uint32_t>& recv_can_ids,
                                         const std::vector<damiao_motor::ControlMode>& control_modes,
-                                        const std::vector<double>& offsets) {
+                                        const std::vector<double>& offsets,
+                                        const std::vector<bool>& reversed) {
     if (limit_params.size() != send_can_ids.size() || limit_params.size() != recv_can_ids.size()) {
         throw std::invalid_argument(
             "Limit parameters, send CAN IDs, and receive CAN IDs vectors must have the same size");
     }
     motor_collection_->init_motor_devices_with_limits(limit_params, send_can_ids, recv_can_ids,
-                                                      enable_fd_, control_modes, offsets);
+                                                      enable_fd_, control_modes, offsets, reversed);
     register_motor_collection();
 }
 
