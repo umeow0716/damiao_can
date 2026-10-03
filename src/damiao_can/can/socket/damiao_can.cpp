@@ -145,11 +145,11 @@ void DamiaoCAN::init_motors(const std::vector<uint32_t>& send_can_ids,
     register_motor_collection();
 }
 
-void DamiaoCAN::init_motors_with_limits(
-    const std::vector<damiao_motor::LimitParam>& limit_params,
-    const std::vector<uint32_t>& send_can_ids, const std::vector<uint32_t>& recv_can_ids,
-    const std::vector<damiao_motor::ControlMode>& control_modes,
-    const std::vector<double>& offsets) {
+void DamiaoCAN::init_motors_with_limits(const std::vector<damiao_motor::LimitParam>& limit_params,
+                                        const std::vector<uint32_t>& send_can_ids,
+                                        const std::vector<uint32_t>& recv_can_ids,
+                                        const std::vector<damiao_motor::ControlMode>& control_modes,
+                                        const std::vector<double>& offsets) {
     if (limit_params.size() != send_can_ids.size() || limit_params.size() != recv_can_ids.size()) {
         throw std::invalid_argument(
             "Limit parameters, send CAN IDs, and receive CAN IDs vectors must have the same size");

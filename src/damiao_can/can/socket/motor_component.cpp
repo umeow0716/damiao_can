@@ -23,11 +23,11 @@ namespace damiao_can::can::socket {
 MotorComponent::MotorComponent(canbus::CANSocket& can_socket)
     : damiao_motor::DMDeviceCollection(can_socket) {}
 
-void MotorComponent::init_motor_devices(
-    const std::vector<damiao_motor::MotorType>& motor_types,
-    const std::vector<canid_t>& send_can_ids, const std::vector<canid_t>& recv_can_ids, bool use_fd,
-    const std::vector<damiao_motor::ControlMode>& control_modes,
-    const std::vector<double>& offsets) {
+void MotorComponent::init_motor_devices(const std::vector<damiao_motor::MotorType>& motor_types,
+                                        const std::vector<canid_t>& send_can_ids,
+                                        const std::vector<canid_t>& recv_can_ids, bool use_fd,
+                                        const std::vector<damiao_motor::ControlMode>& control_modes,
+                                        const std::vector<double>& offsets) {
     if (!control_modes.empty() && control_modes.size() != 1 &&
         control_modes.size() != motor_types.size()) {
         throw std::invalid_argument(
