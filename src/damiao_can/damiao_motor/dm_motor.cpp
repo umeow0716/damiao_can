@@ -21,30 +21,39 @@
 namespace damiao_can::damiao_motor {
 
 // Constructor
-Motor::Motor(MotorType motor_type, uint32_t send_can_id, uint32_t recv_can_id)
+Motor::Motor(MotorType motor_type, uint32_t send_can_id, uint32_t recv_can_id, double offset)
     : send_can_id_(send_can_id),
       recv_can_id_(recv_can_id),
       motor_type_(motor_type),
       limit_param_(get_limit_param(motor_type)),
-      enabled_(false),
-      state_q_(0.0),
-      state_dq_(0.0),
-      state_tau_(0.0),
-      state_tmos_(0),
-      state_trotor_(0) {}
-
-Motor::Motor(const LimitParam& limit_param, uint32_t send_can_id, uint32_t recv_can_id,
-             MotorType motor_type)
-    : send_can_id_(send_can_id),
-      recv_can_id_(recv_can_id),
-      motor_type_(motor_type),
-      limit_param_(limit_param),
+      offset_(offset),
       enabled_(false),
       state_q_(0.0),
       state_dq_(0.0),
       state_tau_(0.0),
       state_tmos_(0),
       state_trotor_(0) {
+    if (!std::isfinite(offset_)) {
+        throw std::invalid_argument("Motor position offset must be finite");
+    }
+}
+
+Motor::Motor(const LimitParam& limit_param, uint32_t send_can_id, uint32_t recv_can_id,
+             MotorType motor_type, double offset)
+    : send_can_id_(send_can_id),
+      recv_can_id_(recv_can_id),
+      motor_type_(motor_type),
+      limit_param_(limit_param),
+      offset_(offset),
+      enabled_(false),
+      state_q_(0.0),
+      state_dq_(0.0),
+      state_tau_(0.0),
+      state_tmos_(0),
+      state_trotor_(0) {
+    if (!std::isfinite(offset_)) {
+        throw std::invalid_argument("Motor position offset must be finite");
+    }
     set_limit_param(limit_param);
 }
 

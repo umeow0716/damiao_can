@@ -78,6 +78,7 @@ device.init_motors(
     [0x01, 0x02, 0x03],
     [0x11, 0x12, 0x13],
     motor_types=[dc.MotorType.DM4310, None, dc.MotorType.DM8009],
+    offset=[0.15, None, -0.05],
 )
 ```
 

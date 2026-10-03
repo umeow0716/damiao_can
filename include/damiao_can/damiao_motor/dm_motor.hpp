@@ -28,16 +28,17 @@ class Motor {
 
 public:
     // Constructor
-    Motor(MotorType motor_type, uint32_t send_can_id, uint32_t recv_can_id);
+    Motor(MotorType motor_type, uint32_t send_can_id, uint32_t recv_can_id, double offset = 0.0);
     Motor(const LimitParam& limit_param, uint32_t send_can_id, uint32_t recv_can_id,
-          MotorType motor_type = MotorType::UNKNOWN);
+          MotorType motor_type = MotorType::UNKNOWN, double offset = 0.0);
 
     // State getters
-    double get_position() const { return state_q_; }
+    double get_position() const { return state_q_ + offset_; }
     double get_velocity() const { return state_dq_; }
     double get_torque() const { return state_tau_; }
     int get_state_tmos() const { return state_tmos_; }
     int get_state_trotor() const { return state_trotor_; }
+    double get_offset() const { return offset_; }
 
     // Motor property getters
     uint32_t get_send_can_id() const { return send_can_id_; }
@@ -68,6 +69,7 @@ protected:
     uint32_t recv_can_id_;
     MotorType motor_type_;
     LimitParam limit_param_;
+    double offset_;
 
     // Enable status
     bool enabled_;
