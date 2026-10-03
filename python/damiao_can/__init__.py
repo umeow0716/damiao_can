@@ -44,8 +44,6 @@ __all__ = [
     "CanFrame",
     "CanFdFrame",
     "MITParam",
-    "MITExchangeSample",
-    "PosVelExchangeSample",
     "PosVelParam",
     "VelParam",
     "PosForceParam",
