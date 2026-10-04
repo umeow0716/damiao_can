@@ -175,3 +175,7 @@ Do not bring an interface down after `DamiaoCAN` or `DamiaoCANGroup` has created
 Licensed under the Apache License 2.0. See `LICENSE.txt`.
 
 This repository contains modifications to code originally copyright 2025 Enactic, Inc.
+
+## System identification
+
+The `feat/dm4310-sysid-telemetry` branch provides reliable calibration recording, independent latest-state telemetry and firmware guard management. Use separate recording/live `SystemIdentification` objects; see [API and safety semantics](docs/SYSTEM_IDENTIFICATION.md) and [scan protocol](docs/OFFSET_SCAN_PROTOCOL.md). New sysid firmware requires guard configuration on every enabled node. No API call automatically enables motors, clears faults or persists calibration.

@@ -10,7 +10,7 @@ The implementation was checked against the current source in `../DM4310_firmware
 
 C++ includes `<damiao_can/sysid/system_identification.hpp>` and uses namespace `damiao_can::sysid`. Python exports `SystemIdentification` and the `SysId*` typed records directly from `damiao_can`.
 
-`SystemIdentification(interface, node, offset=0.0, reversed=False, queue_capacity=2048)` owns its own FD-enabled CANSocket. It installs exact standard-data filters for management/sample IDs, so other bus messages remain available on independently owned legacy sockets. This socket must not be shared with another receiver. Existing FD-enabled legacy sockets now accept both classic and FD frames; an unrelated classic ACK no longer causes an FD frame-size exception.
+`SystemIdentification(interface, node, offset=0.0, reversed=False, queue_capacity=2048, live_only=False)` owns its own FD-enabled CANSocket. It installs exact standard-data filters for management/sample IDs, so other bus messages remain available on independently owned legacy sockets. This socket must not be shared with another receiver. Existing FD-enabled legacy sockets now accept both classic and FD frames; an unrelated classic ACK no longer causes an FD frame-size exception.
 
 There is no automatic background receiver, heartbeat, controller, or interface configuration. Call `poll()` or `read_samples()` regularly. Public calls serialize on a mutex; do not expect parallel calls on one object to bypass a management wait. Python blocking I/O releases the GIL. Closing the object is explicit and closes its owned descriptor; destruction also closes it without transmitting operations.
 
@@ -159,3 +159,28 @@ Call capture heartbeat approximately every 100 ms; firmware stops generating sam
 Capture STOP, capture timeout, API close, and receiver cleanup do not send zero torque, disable, or guarantee motor standstill. Real motor shutdown remains an explicit responsibility of the controlling application. Firmware queued samples can arrive after STOP; bounded draining followed by a final STATUS records final firmware drop counters and stop reason.
 
 No examples or tests in this change constitute hardware authorization. Hardware FD interoperability, bus load with seven holding axes, ISR timing, actual tick frequency, acquisition delay, calibration, and safe loaded operation still require separate validation.
+
+## Independent guard / latest-state API
+
+New sysid firmware requires an explicit guard before enabling any node. Existing calibration layouts and reliable ACK semantics are preserved. Eight-node capability/guard setup belongs to the controlling application. The SDK does not enable or automatically clear faults.
+
+```python
+import damiao_can as dc
+with dc.SystemIdentification("can0", 1, live_only=True) as live:
+    s = live.safety_status().safety  # require enabled deadman, no latch
+    live.configure_guard(-0.25, 0.25, 0.3, 2.0)  # raw q, |v|, Iq-derived Nm
+    # configure_guard stages all fields, commits atomically, reads back f32 values
+    # Normal application must safely enable/control the motor separately.
+    live.start_live()
+    live.heartbeat()
+    state = live.read_latest(timeout_us=2000)
+    if state is not None:
+        print(state.sample.endpoint_tick, state.position, state.mos_temperature)
+    live.stop_live()
+```
+
+Instantiate a separate recording object and live object, and run separate receivers. Python I/O releases the GIL, but calls on one object serialize. `live_only=True` filters management 0x6F1 and latest-state 0x6E0, avoiding calibration replay traffic. `read_latest()` skips older/foreign snapshots and has no canonical-record ordering gate; it never releases live packets through `read_samples()`. Position, velocity, Iq and torque transform offset/reversed once; MOS temperature does not transform. MOS temperature is only available in live snapshots; calibration Measurement.mos_temperature defaults to zero and must not be treated as a calibration temperature reading.
+
+Firmware checks 250 ms control-command lease independently of heartbeat/ACK/refresh, plus raw position/velocity/torque/temperature envelope. Live sends every 40 nominal ticks (500 Hz), keeps newest pending state and counts overwrites; it is deliberately not reliable recorded data. `SysIdSafetyInformation` exposes active bounds, lease, control tick, live state, latch and reason. Existing legacy Motor/MotorStateResult now expose actual feedback `get_fault()`/`fault` (0 disabled, 1 enabled, >1 fault), so holder checks need not infer enable from stale client-side flags.
+
+Wire layout and exact firmware behavior: sibling firmware `docs/SYSTEM_IDENTIFICATION_PROTOCOL.md` §10. Physical stopping, real bus latency and WCET remain hardware acceptance tasks; SDK close/capture STOP are not motor shutdown commands.

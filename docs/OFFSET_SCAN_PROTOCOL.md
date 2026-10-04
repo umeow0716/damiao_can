@@ -68,11 +68,11 @@ The token is a 32-bit random-session attribution fence, not authentication. One 
 
 SDK reliable receive buffers reorder partial pairs, checks equal tick/session, and delivers only chronological contiguous samples once. Ordinary non-scan capture requires only the base sample. Scan capture requires both frames. Received duplicates are ignored; repaired losses do not create permanent sequence gaps. No automatic data ACK is issued by the SDK: the application must persist first, then acknowledge. Host queue saturation blocks release; it must not acknowledge unwritten data.
 
-Before retention fills (127 slots), firmware stops capture with STATUS stop_reason=4 and requests scan abort reason=9; it preserves already generated data. Passive capture does not itself command the motor to stop: the host must stop/disable its command loop when capture stops. A host failure still relies on original hardware watchdog/fault behavior. STOP does not discard retained data or overwrite an earlier abnormal stop reason. After STOP, replay/ACK remain available. The host reconciles next_sample_sequence with the durable/ACKed prefix; a successful dataset requires equality, no firmware sample drops, and normal STOP. Buffer exhaustion is a failed experiment even if its retained prefix is fully recovered.
+Before retention fills (127 slots), firmware stops capture with STATUS stop_reason=4 and requests scan abort reason=9; it preserves already generated data. Passive capture does not itself command the motor to stop: the host must stop/disable its command loop when capture stops. All new sysid nodes additionally require the independent guard and 250 ms command/scan lease described in SYSTEM_IDENTIFICATION_PROTOCOL.md §10. STOP does not discard retained data or overwrite an earlier abnormal stop reason. After STOP, replay/ACK remain available. The host reconciles next_sample_sequence with the durable/ACKed prefix; a successful dataset requires equality, no firmware sample drops, and normal STOP. Buffer exhaustion is a failed experiment even if its retained prefix is fully recovered.
 
 ## Scan current command cap
 
-While the trajectory owns control, the existing 20 kHz current reference clamp also applies min(profile current limit, configured torque_limit / output_torque_constant). Invalid torque constant fails closed to zero reference. The measured Iq-derived torque threshold remains an independent abort check. This is a current-reference cap, not a calibrated hard shaft-torque guarantee; controller overshoot, gravity, conversion accuracy and real stopping distance remain unverified. It does not change holder-axis current limits or persist EEPROM settings.
+While the trajectory owns control, the existing 20 kHz current reference clamp also applies min(profile current limit, configured torque_limit / output_torque_constant). Invalid torque constant fails closed to zero reference. The measured Iq-derived torque threshold remains an independent abort check. This is a current-reference cap, not a calibrated hard shaft-torque guarantee; controller overshoot, gravity, conversion accuracy and real stopping distance remain unverified. The independent guard additionally caps current in every guarded holder/test node and mode; it does not persist EEPROM settings.
 
 ## Python usage
 
@@ -86,3 +86,7 @@ capture.replay_data(first_missing_sequence)
 ```
 
 Normal non-scan reliable capture omits configure_scan. Applications must keep capture heartbeat alive, stop motor output separately, drain after STOP, and compare final next_sample_sequence with the durable acknowledged count. This SDK never fsyncs application files and never automatically acknowledges their persistence.
+
+## Independent protection prerequisite
+
+Configure and read back the independent guard on all eight nodes before enable. Initialize with mechanical/low-speed limits, then atomically tighten to the test/holder envelope while POSVEL holds the pose. Use a separate 0x6E0 live socket/thread for newest-state monitoring; reliable 0x6F2/0x6F3 recording may wait for replay without owning that path. See SYSTEM_IDENTIFICATION_PROTOCOL.md §10 for operation 21–28, fields and latch/reset semantics.

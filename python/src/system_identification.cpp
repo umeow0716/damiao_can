@@ -9,6 +9,24 @@ namespace nb = nanobind;
 using namespace damiao_can::sysid;
 
 void bind_system_identification(nb::module_& m) {
+    nb::class_<SafetyInformation>(m, "SysIdSafetyInformation")
+        .def_ro("node", &SafetyInformation::node)
+        .def_ro("request_sequence", &SafetyInformation::request_sequence)
+        .def_ro("control_tick", &SafetyInformation::control_tick)
+        .def_ro("command_lease_ticks", &SafetyInformation::command_lease_ticks)
+        .def_ro("live_period_ticks", &SafetyInformation::live_period_ticks)
+        .def_ro("last_command_tick", &SafetyInformation::last_command_tick)
+        .def_ro("live_overwritten", &SafetyInformation::live_overwritten)
+        .def_ro("deadman_enabled", &SafetyInformation::deadman_enabled)
+        .def_ro("deadman_latched", &SafetyInformation::deadman_latched)
+        .def_ro("live_active", &SafetyInformation::live_active)
+        .def_ro("guard_enabled", &SafetyInformation::guard_enabled)
+        .def_ro("guard_reason", &SafetyInformation::guard_reason)
+        .def_ro("guard_lower", &SafetyInformation::guard_lower)
+        .def_ro("guard_upper", &SafetyInformation::guard_upper)
+        .def_ro("guard_max_velocity", &SafetyInformation::guard_max_velocity)
+        .def_ro("guard_torque_limit", &SafetyInformation::guard_torque_limit)
+        .def_ro("raw", &SafetyInformation::raw);
     nb::exception<ProtocolError>(m, "SysIdProtocolError", PyExc_RuntimeError);
     nb::exception<TimeoutError>(m, "SysIdTimeoutError", PyExc_RuntimeError);
     nb::exception<SessionError>(m, "SysIdSessionError", PyExc_RuntimeError);
@@ -32,6 +50,14 @@ void bind_system_identification(nb::module_& m) {
         .value("SCAN_STATUS", Operation::SCAN_STATUS)
         .value("DATA_ACK", Operation::DATA_ACK)
         .value("DATA_REPLAY", Operation::DATA_REPLAY)
+        .value("SAFETY_STATUS", Operation::SAFETY_STATUS)
+        .value("LIVE_START", Operation::LIVE_START)
+        .value("LIVE_STOP", Operation::LIVE_STOP)
+        .value("GUARD_LOWER", Operation::GUARD_LOWER)
+        .value("GUARD_UPPER", Operation::GUARD_UPPER)
+        .value("GUARD_SPEED", Operation::GUARD_SPEED)
+        .value("GUARD_TORQUE", Operation::GUARD_TORQUE)
+        .value("GUARD_ARM", Operation::GUARD_ARM)
         .value("SCAN_ABORT", Operation::SCAN_ABORT);
     nb::enum_<Result>(m, "SysIdResult")
         .value("ACCEPTED", Result::ACCEPTED)
@@ -126,7 +152,8 @@ void bind_system_identification(nb::module_& m) {
         .def_ro("averaged_iq", &Measurement::averaged_iq)
         .def_ro("torque_estimate", &Measurement::torque_estimate)
         .def_ro("mit_feedforward_torque", &Measurement::mit_feedforward_torque)
-        .def_ro("instantaneous_iq", &Measurement::instantaneous_iq);
+        .def_ro("instantaneous_iq", &Measurement::instantaneous_iq)
+        .def_ro("mos_temperature", &Measurement::mos_temperature);
     nb::class_<ScanConfig>(m, "SysIdScanConfig")
         .def(nb::init<>())
         .def_rw("lower", &ScanConfig::lower)
@@ -160,6 +187,7 @@ void bind_system_identification(nb::module_& m) {
         .def_ro("end_tick", &ScanRecord::end_tick)
         .def_ro("raw", &ScanRecord::raw);
     nb::class_<Reply>(m, "SysIdReply")
+        .def_ro("safety", &Reply::safety)
         .def_ro("ack", &Reply::ack)
         .def_ro("information", &Reply::information)
         .def_ro("scan", &Reply::scan)
@@ -191,6 +219,9 @@ void bind_system_identification(nb::module_& m) {
     m.def("decode_sysid_information", &decode_information, nb::arg("frame"));
     m.def("decode_sysid_scan_record", &decode_scan_record);
     m.def("decode_sysid_sample", &decode_sample, nb::arg("frame"));
+    m.def("decode_sysid_live", &decode_live, nb::arg("frame"), nb::arg("offset") = 0.,
+          nb::arg("reversed") = false);
+    m.def("decode_sysid_safety", &decode_safety, nb::arg("frame"));
     m.def(
         "encode_sysid_request",
         [](uint8_t node, Operation operation, uint8_t argument, uint32_t sequence) {
@@ -201,9 +232,21 @@ void bind_system_identification(nb::module_& m) {
     m.def("sysid_command_sequence_distance", &command_sequence_distance, nb::arg("previous"),
           nb::arg("current"));
     nb::class_<SystemIdentification>(m, "SystemIdentification")
-        .def(nb::init<const std::string&, uint8_t, double, bool, size_t>(), nb::arg("interface"),
-             nb::arg("node"), nb::arg("offset") = 0, nb::arg("reversed") = false,
-             nb::arg("queue_capacity") = 2048)
+        .def(nb::init<const std::string&, uint8_t, double, bool, size_t, bool>(),
+             nb::arg("interface"), nb::arg("node"), nb::arg("offset") = 0,
+             nb::arg("reversed") = false, nb::arg("queue_capacity") = 2048,
+             nb::arg("live_only") = false)
+        .def("safety_status", &SystemIdentification::safety_status, nb::arg("timeout_us") = 100000,
+             nb::call_guard<nb::gil_scoped_release>())
+        .def("start_live", &SystemIdentification::start_live, nb::arg("timeout_us") = 100000,
+             nb::call_guard<nb::gil_scoped_release>())
+        .def("stop_live", &SystemIdentification::stop_live, nb::arg("timeout_us") = 100000,
+             nb::call_guard<nb::gil_scoped_release>())
+        .def("configure_guard", &SystemIdentification::configure_guard, nb::arg("lower"),
+             nb::arg("upper"), nb::arg("max_velocity"), nb::arg("torque_limit"),
+             nb::arg("timeout_us") = 100000, nb::call_guard<nb::gil_scoped_release>())
+        .def("read_latest", &SystemIdentification::read_latest, nb::arg("timeout_us") = 0,
+             nb::arg("max_frames") = 256, nb::call_guard<nb::gil_scoped_release>())
         .def("info", &SystemIdentification::info, nb::arg("timeout_us") = 100000,
              nb::call_guard<nb::gil_scoped_release>())
         .def("status", &SystemIdentification::status, nb::arg("timeout_us") = 100000,

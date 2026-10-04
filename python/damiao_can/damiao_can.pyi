@@ -437,6 +437,8 @@ class Motor:
     def get_send_can_id(self) -> int:
         ...
 
+    def get_fault(self) -> int: ...
+
     def get_state_tmos(self) -> int:
         ...
 
@@ -485,6 +487,7 @@ class MotorDeviceCan(CANDevice):
 
 
 class MotorStateResult:
+    fault: int
     position: float
     t_mos: int
     t_rotor: int
@@ -943,6 +946,14 @@ class SysIdOperation(enum.Enum):
 
     DATA_ACK = 19
     DATA_REPLAY = 20
+    SAFETY_STATUS = 21
+    LIVE_START = 22
+    LIVE_STOP = 23
+    GUARD_LOWER = 24
+    GUARD_UPPER = 25
+    GUARD_SPEED = 26
+    GUARD_TORQUE = 27
+    GUARD_ARM = 28
 
 
 class SysIdResult(enum.Enum):
@@ -1057,9 +1068,31 @@ class SysIdMeasurement:
     torque_estimate: float
     mit_feedforward_torque: float
     instantaneous_iq: float
+    mos_temperature: float
+
+
+class SysIdSafetyInformation:
+    node: int
+    request_sequence: int
+    control_tick: int
+    command_lease_ticks: int
+    live_period_ticks: int
+    last_command_tick: int
+    live_overwritten: int
+    deadman_enabled: bool
+    deadman_latched: bool
+    live_active: bool
+    guard_enabled: bool
+    guard_reason: int
+    guard_lower: float
+    guard_upper: float
+    guard_max_velocity: float
+    guard_torque_limit: float
+    raw: SysIdFrame
 
 
 class SysIdReply:
+    safety: SysIdSafetyInformation | None
     scan: SysIdScanRecord | None
     ack: SysIdAck | None
     information: SysIdInformation | None
@@ -1096,8 +1129,13 @@ class SysIdStopResult:
 
 
 class SystemIdentification:
+    def safety_status(self, timeout_us: int = 100000) -> SysIdReply: ...
+    def configure_guard(self, lower: float, upper: float, max_velocity: float, torque_limit: float, timeout_us: int = 100000) -> None: ...
+    def start_live(self, timeout_us: int = 100000) -> SysIdReply: ...
+    def stop_live(self, timeout_us: int = 100000) -> SysIdReply: ...
+    def read_latest(self, timeout_us: int = 0, max_frames: int = 256) -> SysIdMeasurement | None: ...
     def __init__(self, interface: str, node: int, offset: float = 0.0,
-                 reversed: bool = False, queue_capacity: int = 2048) -> None: ...
+                 reversed: bool = False, queue_capacity: int = 2048, live_only: bool = False) -> None: ...
 
     def info(self, timeout_us: int = 100000) -> SysIdReply: ...
     def status(self, timeout_us: int = 100000) -> SysIdReply: ...
@@ -1136,6 +1174,8 @@ class SystemIdentification:
                  traceback: object) -> None: ...
 
 
+def decode_sysid_safety(frame: SysIdFrame) -> SysIdSafetyInformation: ...
+def decode_sysid_live(frame: SysIdFrame, offset: float = 0.0, reversed: bool = False) -> SysIdMeasurement: ...
 def decode_sysid_ack(frame: SysIdFrame) -> SysIdAck: ...
 def decode_sysid_information(frame: SysIdFrame) -> SysIdInformation: ...
 def decode_sysid_sample(frame: SysIdFrame) -> SysIdSample: ...

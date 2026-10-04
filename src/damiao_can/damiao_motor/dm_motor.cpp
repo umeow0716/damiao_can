@@ -83,12 +83,13 @@ double Motor::get_param(int RID) const {
 void Motor::set_temp_param(int RID, double val) { temp_param_dict_[RID] = val; }
 
 // State update methods
-void Motor::update_state(double q, double dq, double tau, int tmos, int trotor) {
+void Motor::update_state(double q, double dq, double tau, int tmos, int trotor, int fault) {
     state_q_ = q;
     state_dq_ = dq;
     state_tau_ = tau;
     state_tmos_ = tmos;
     state_trotor_ = trotor;
+    state_fault_ = fault;
 }
 
 void Motor::set_state_tmos(int tmos) { state_tmos_ = tmos; }

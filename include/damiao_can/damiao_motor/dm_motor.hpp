@@ -39,6 +39,7 @@ public:
     double get_torque() const { return get_direction() * state_tau_; }
     int get_state_tmos() const { return state_tmos_; }
     int get_state_trotor() const { return state_trotor_; }
+    int get_fault() const { return state_fault_; }
     double get_offset() const { return offset_; }
     bool is_reversed() const { return reversed_; }
     double get_direction() const { return reversed_ ? -1.0 : 1.0; }
@@ -61,7 +62,7 @@ public:
 
 protected:
     // State update methods
-    void update_state(double q, double dq, double tau, int tmos, int trotor);
+    void update_state(double q, double dq, double tau, int tmos, int trotor, int fault = 0);
     void set_state_tmos(int tmos);
     void set_state_trotor(int trotor);
     void set_enabled(bool enabled);
@@ -81,6 +82,7 @@ protected:
     // Current state
     double state_q_, state_dq_, state_tau_;
     int state_tmos_, state_trotor_;
+    int state_fault_ = 0;
 
     // Parameter storage
     std::map<int, double> temp_param_dict_;

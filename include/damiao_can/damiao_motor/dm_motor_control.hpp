@@ -41,6 +41,7 @@ struct StateResult {
     int t_mos;
     int t_rotor;
     bool valid;
+    int fault = 0;  // Feedback byte 0 high nibble: 0 disabled, 1 enabled, >1 fault.
 };
 
 struct CANPacket {

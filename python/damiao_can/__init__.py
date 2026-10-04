@@ -29,6 +29,7 @@ __author__ = "Enactic, Inc."
 __all__ = [
     # Passive System Identification telemetry v1
     "SysIdScanConfig", "SysIdScanRecord", "decode_sysid_scan_record",
+    "SysIdSafetyInformation", "decode_sysid_safety", "decode_sysid_live",
     "SysIdOperation",
     "SysIdResult",
     "SysIdFrame",

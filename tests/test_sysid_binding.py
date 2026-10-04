@@ -24,6 +24,29 @@ def frame(can_id, payload, fd=False, flags=0):
 
 
 class BindingTests(unittest.TestCase):
+    def test_live_and_guard_exports(self):
+        live = bytearray(FIXTURE)
+        live[1] = 0x92
+        live[3] = 1
+        struct.pack_into("<I", live, 4, 123)
+        struct.pack_into("<f", live, 28, 42)
+        m = dc.decode_sysid_live(
+            frame(0x6E0, bytes(live), True, 1), offset=.2, reversed=True)
+        self.assertEqual(m.session_id, 123)
+        self.assertAlmostEqual(m.position, -1.05)
+        self.assertEqual(m.mos_temperature, 42)
+        self.assertEqual(m.averaged_iq, -3)
+        safety = bytearray(64)
+        safety[:4] = bytes([1, 0x84, 1, 9])
+        struct.pack_into("<II", safety, 12, 5000, 40)
+        struct.pack_into("<4f", safety, 28, -.2, .4, .3, 2.)
+        status = dc.decode_sysid_safety(frame(0x6F1, bytes(safety), True, 1))
+        self.assertTrue(status.guard_enabled)
+        self.assertEqual(status.guard_torque_limit, 2.)
+        self.assertTrue(hasattr(dc.SystemIdentification, 'configure_guard'))
+        self.assertTrue(hasattr(dc.SystemIdentification, 'read_latest'))
+        self.assertIn('SysIdSafetyInformation', dc.__all__)
+
     def test_complete_firmware_fixture(self):
         sample = dc.decode_sysid_sample(frame(0x6F2, FIXTURE, True, 1))
         expected = dict(version=1, node=1, flags=9, sequence=0, endpoint_tick=40,

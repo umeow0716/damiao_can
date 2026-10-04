@@ -66,14 +66,19 @@ uint32_t initial_sequence() {
 
 class SocketTransport final : public Transport {
 public:
-    explicit SocketTransport(const std::string& interface) : socket_(interface, true) {
+    explicit SocketTransport(const std::string& interface, bool live_only = false)
+        : socket_(interface, true) {
         const can_filter filters[] = {
             {response_id, CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_ERR_FLAG},
             {sample_id, CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_ERR_FLAG},
             {0x6F3, CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_ERR_FLAG}};
+        const can_filter live_filters[] = {
+            {response_id, CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_ERR_FLAG},
+            {0x6E0, CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_ERR_FLAG}};
         const int enabled = 1;
-        if (::setsockopt(socket_.get_socket_fd(), SOL_CAN_RAW, CAN_RAW_FILTER, filters,
-                         sizeof(filters)) < 0 ||
+        if (::setsockopt(socket_.get_socket_fd(), SOL_CAN_RAW, CAN_RAW_FILTER,
+                         live_only ? live_filters : filters,
+                         live_only ? sizeof(live_filters) : sizeof(filters)) < 0 ||
             ::setsockopt(socket_.get_socket_fd(), SOL_SOCKET, SO_RXQ_OVFL, &enabled,
                          sizeof(enabled)) < 0)
             throw canbus::CANSocketException(
@@ -147,7 +152,7 @@ private:
 Ack decode_ack(const Frame& frame) {
     validate(frame, response_id, 8, false);
     const auto& data = frame.payload;
-    if (data[1] != 0x80 || data[2] < 1 || data[2] > 20 || data[3] > 6)
+    if (data[1] != 0x80 || data[2] < 1 || data[2] > 28 || data[3] > 6)
         throw ProtocolError("invalid sysid ACK type, operation or result");
     return {data[0], static_cast<Operation>(data[2]), static_cast<Result>(data[3]), u32(data, 4),
             frame};
@@ -223,11 +228,68 @@ Sample decode_sample(const Frame& frame) {
     return result;
 }
 
+SafetyInformation decode_safety(const Frame& frame) {
+    validate(frame, response_id, 64, true);
+    const auto& d = frame.payload;
+    if (d[1] != 0x84 || (d[3] & ~15U) || u32(d, 12) == 0 || u32(d, 16) != 40 || d[44] > 7)
+        throw ProtocolError("invalid safety capability/status");
+    validate_node(d[2]);
+    for (size_t i = 45; i < 64; ++i)
+        if (d[i]) throw ProtocolError("nonzero safety reserved bytes");
+    SafetyInformation s;
+    s.node = d[2];
+    s.request_sequence = u32(d, 4);
+    s.control_tick = u32(d, 8);
+    s.command_lease_ticks = u32(d, 12);
+    s.live_period_ticks = u32(d, 16);
+    s.last_command_tick = u32(d, 20);
+    s.live_overwritten = u32(d, 24);
+    s.deadman_enabled = d[3] & 1;
+    s.deadman_latched = d[3] & 2;
+    s.live_active = d[3] & 4;
+    s.guard_enabled = d[3] & 8;
+    s.guard_reason = d[44];
+    s.guard_lower = f32(d, 28);
+    s.guard_upper = f32(d, 32);
+    s.guard_max_velocity = f32(d, 36);
+    s.guard_torque_limit = f32(d, 40);
+    if (s.guard_enabled && (!(s.guard_lower < s.guard_upper) || s.guard_max_velocity <= 0 ||
+                            s.guard_torque_limit <= 0))
+        throw ProtocolError("invalid active guard");
+    s.raw = frame;
+    return s;
+}
+
+Measurement decode_live(const Frame& frame, double offset, bool reversed) {
+    validate(frame, 0x6E0, 64, true);
+    if (frame.payload[1] != 0x92 || (frame.payload[3] & 8U) || frame.payload[60] != 40 ||
+        frame.payload[61] != 0 || !std::isfinite(offset))
+        throw ProtocolError("invalid live snapshot");
+    Frame alias = frame;
+    alias.can_id = sample_id;
+    alias.payload[1] = 0x90;
+    Measurement m;
+    m.session_id = u32(frame.payload, 4);
+    m.sample = decode_sample(alias);
+    m.mos_temperature = f32(frame.payload, 28);
+    m.sample.averaged_iq = m.sample.instantaneous_iq;
+    m.sample.raw = frame;
+    const double sign = reversed ? -1 : 1;
+    m.position = sign * m.sample.position + offset;
+    m.velocity = sign * m.sample.velocity;
+    m.averaged_iq = sign * m.sample.averaged_iq;
+    m.torque_estimate = sign * m.sample.torque_estimate;
+    m.instantaneous_iq = sign * m.sample.instantaneous_iq;
+    m.mit_feedforward_torque = sign * m.sample.mit_feedforward_torque;
+    m.unwrapped_endpoint_tick = m.sample.endpoint_tick;
+    return m;
+}
+
 std::array<uint8_t, 8> encode_request(uint8_t node, Operation operation, uint8_t argument,
                                       uint32_t sequence) {
     validate_node(node);
     const uint8_t op = static_cast<uint8_t>(operation);
-    if (op < 1 || op > 20 || (operation == Operation::START ? argument > 3 : argument != 0))
+    if (op < 1 || op > 28 || (operation == Operation::START ? argument > 3 : argument != 0))
         throw std::invalid_argument("invalid sysid operation/argument");
     std::array<uint8_t, 8> data{1, node, op, argument, 0, 0, 0, 0};
     for (size_t i = 0; i < 4; ++i) data[4 + i] = static_cast<uint8_t>(sequence >> (8 * i));
@@ -242,9 +304,10 @@ uint32_t command_sequence_distance(uint32_t previous, uint32_t current) {
 }
 
 SystemIdentification::SystemIdentification(const std::string& interface, uint8_t node,
-                                           double offset, bool reversed, size_t capacity)
-    : SystemIdentification(std::make_unique<SocketTransport>(interface), node, offset, reversed,
-                           capacity) {}
+                                           double offset, bool reversed, size_t capacity,
+                                           bool live_only)
+    : SystemIdentification(std::make_unique<SocketTransport>(interface, live_only), node, offset,
+                           reversed, capacity) {}
 
 SystemIdentification::SystemIdentification(std::unique_ptr<Transport> transport, uint8_t node,
                                            double offset, bool reversed, size_t capacity)
@@ -372,7 +435,16 @@ bool SystemIdentification::receive_one(int timeout_us) {
         const auto frame = transport_->receive(timeout_us);
         diagnostics_.socket_dropped = transport_->socket_dropped();
         if (!frame) return false;
-        if (frame->can_id == 0x6F3) {
+        if (frame->can_id == 0x6E0) {
+            auto live = decode_live(*frame, offset_, direction_ < 0);
+            if (live.sample.node == node_ && live_session_ && live.session_id == *live_session_ &&
+                (!live_last_tick_ ||
+                 (uint32_t(live.sample.endpoint_tick - *live_last_tick_) > 0 &&
+                  uint32_t(live.sample.endpoint_tick - *live_last_tick_) < 0x80000000U))) {
+                live_last_tick_ = live.sample.endpoint_tick;
+                latest_live_ = std::move(live);
+            }
+        } else if (frame->can_id == 0x6F3) {
             auto record = decode_scan_record(*frame);
             if (record.node == node_ && reliable_) {
                 if ((!session_ && !pending_start_) ||
@@ -411,6 +483,8 @@ bool SystemIdentification::receive_one(int timeout_us) {
             Reply reply;
             if (frame->payload.size() == 8)
                 reply.ack = decode_ack(*frame);
+            else if (frame->payload.size() == 64 && frame->payload[1] == 0x84)
+                reply.safety = decode_safety(*frame);
             else if (frame->payload.size() == 64 && frame->payload[1] == 0x83)
                 reply.scan = decode_scan_record(*frame);
             else
@@ -445,6 +519,9 @@ Reply SystemIdentification::request(Operation operation, uint8_t argument, uint3
             if (reply.scan)
                 return operation == Operation::SCAN_STATUS && reply.scan->node == node_ &&
                        reply.scan->sequence == sequence;
+            if (reply.safety)
+                return operation == Operation::SAFETY_STATUS && reply.safety->node == node_ &&
+                       reply.safety->request_sequence == sequence;
             const auto& information = *reply.information;
             return information.node == node_ && information.request_sequence == sequence &&
                    information.message_type == (operation == Operation::INFO ? 0x81 : 0x82) &&
@@ -477,6 +554,65 @@ Reply SystemIdentification::info(int timeout_us) {
 Reply SystemIdentification::status(int timeout_us) {
     std::lock_guard<std::mutex> guard(mutex_);
     return request(Operation::STATUS, 0, next_request_sequence(), timeout_us);
+}
+
+Reply SystemIdentification::safety_status(int timeout_us) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    return request(Operation::SAFETY_STATUS, 0, next_request_sequence(), timeout_us);
+}
+Reply SystemIdentification::start_live(int timeout_us) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!live_session_) {
+        live_session_ = next_request_sequence();
+        live_last_tick_.reset();
+    }
+    auto reply = request(Operation::LIVE_START, 0, *live_session_, timeout_us);
+    if (!reply.accepted()) {
+        live_session_.reset();
+        latest_live_.reset();
+    }
+    return reply;
+}
+Reply SystemIdentification::stop_live(int timeout_us) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!live_session_) throw SessionError("no live session");
+    auto reply = request(Operation::LIVE_STOP, 0, *live_session_, timeout_us);
+    if (reply.accepted()) {
+        live_session_.reset();
+        latest_live_.reset();
+    }
+    return reply;
+}
+void SystemIdentification::configure_guard(double lower, double upper, double speed, double torque,
+                                           int timeout_us) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const float values[] = {float(lower), float(upper), float(speed), float(torque)};
+    for (float v : values)
+        if (!std::isfinite(v)) throw std::invalid_argument("nonfinite guard config");
+    if (!(values[0] < values[1]) || values[2] <= 0 || values[3] <= 0)
+        throw std::invalid_argument("invalid guard config");
+    for (unsigned k = 0; k < 4; ++k) {
+        uint32_t bits;
+        std::memcpy(&bits, &values[k], 4);
+        if (!request(static_cast<Operation>(24 + k), 0, bits, timeout_us).accepted())
+            throw SessionError("guard field rejected");
+    }
+    if (!request(Operation::GUARD_ARM, 0, next_request_sequence(), timeout_us).accepted())
+        throw SessionError("guard commit rejected");
+    auto reply = request(Operation::SAFETY_STATUS, 0, next_request_sequence(), timeout_us);
+    if (!reply.safety) throw SessionError("guard status unavailable");
+    const auto& s = *reply.safety;
+    if (!s.deadman_enabled || !s.guard_enabled || s.deadman_latched || s.guard_lower != values[0] ||
+        s.guard_upper != values[1] || s.guard_max_velocity != values[2] ||
+        s.guard_torque_limit != values[3])
+        throw SessionError("guard readback mismatch");
+}
+std::optional<Measurement> SystemIdentification::read_latest(int timeout_us, size_t max_frames) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    poll_locked(timeout_us, max_frames);
+    auto result = latest_live_;
+    latest_live_.reset();
+    return result;
 }
 
 StartResult SystemIdentification::start(int rate_hz, int timeout_us, bool reliable) {
@@ -584,7 +720,7 @@ Reply SystemIdentification::replay_data(uint32_t next_sequence, int timeout_us) 
 
 Reply SystemIdentification::heartbeat(int timeout_us) {
     std::lock_guard<std::mutex> guard(mutex_);
-    if (!session_) throw SessionError("no owned capture session; START required");
+    if (!session_ && !live_session_) throw SessionError("no owned capture or live session");
     return request(Operation::HEARTBEAT, 0, next_request_sequence(), timeout_us);
 }
 
@@ -683,7 +819,7 @@ std::optional<uint32_t> SystemIdentification::owned_session() const {
 ScanRecord decode_scan_record(const Frame& frame) {
     validate(frame, frame.can_id == 0x6F3 ? 0x6F3 : response_id, 64, true);
     const auto& d = frame.payload;
-    if (d[1] != (frame.can_id == 0x6F3 ? 0x91 : 0x83) || d[3] > 8 || d[56] > 9 || d[57] > 1 ||
+    if (d[1] != (frame.can_id == 0x6F3 ? 0x91 : 0x83) || d[3] > 8 || d[56] > 10 || d[57] > 1 ||
         d[58] > 1)
         throw ProtocolError("invalid scan record");
     validate_node(d[2]);

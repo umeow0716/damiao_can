@@ -185,3 +185,5 @@ sw_ver: MotorVariable  # value = MotorVariable.sw_ver
 u_off: MotorVariable  # value = MotorVariable.u_off
 v_off: MotorVariable  # value = MotorVariable.v_off
 xout: MotorVariable  # value = MotorVariable.xout
+
+from damiao_can.damiao_can import SysIdSafetyInformation, decode_sysid_safety, decode_sysid_live

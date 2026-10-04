@@ -119,7 +119,7 @@ StateResult CanPacketDecoder::parse_motor_state_data(const Motor& motor,
     double recv_dq = CanPacketDecoder::uint_to_double(dq_uint, -limits.vMax, limits.vMax, 12);
     double recv_tau = CanPacketDecoder::uint_to_double(tau_uint, -limits.tMax, limits.tMax, 12);
 
-    return {recv_q, recv_dq, recv_tau, t_mos, t_rotor, true};
+    return {recv_q, recv_dq, recv_tau, t_mos, t_rotor, true, int(data[0] >> 4)};
 }
 
 ParamResult CanPacketDecoder::parse_motor_param_data(const std::vector<uint8_t>& data) {

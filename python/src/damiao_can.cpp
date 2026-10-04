@@ -201,7 +201,8 @@ NB_MODULE(damiao_can, m) {
         .def_rw("torque", &StateResult::torque)
         .def_rw("t_mos", &StateResult::t_mos)
         .def_rw("t_rotor", &StateResult::t_rotor)
-        .def_rw("valid", &StateResult::valid);
+        .def_rw("valid", &StateResult::valid)
+        .def_rw("fault", &StateResult::fault);
 
     // CANPacket struct
     nb::class_<CANPacket>(m, "CANPacket")
@@ -277,6 +278,7 @@ NB_MODULE(damiao_can, m) {
         .def("get_torque", &Motor::get_torque)
         .def("get_state_tmos", &Motor::get_state_tmos)
         .def("get_state_trotor", &Motor::get_state_trotor)
+        .def("get_fault", &Motor::get_fault)
         .def("get_send_can_id", &Motor::get_send_can_id)
         .def("get_recv_can_id", &Motor::get_recv_can_id)
         .def("get_motor_type", &Motor::get_motor_type)

@@ -2,7 +2,7 @@
 
 Date: 2026-10-04. Branch: `feat/dm4310-sysid-telemetry`.
 Source basis includes the existing offset and reversed host-coordinate implementation.
-No firmware or damiao_ws files were modified, and no hardware control or flashing was performed.
+No hardware control or flashing was performed. The current branch also integrates the matching independent guard/live firmware and damiao_ws runtime.
 
 ## Reproduce
 
@@ -37,7 +37,7 @@ An ordinary Python virtual environment and pip installation can replace uv. The 
 | CTest actual CANSocket/mixed-frame/legacy-control executable | Passed |
 | AddressSanitizer + UndefinedBehaviorSanitizer build and both CTest executables | Passed |
 | Python 3.12.12 wheel build/install | Passed |
-| Four Python binding fixture/validation/export test methods | Passed |
+| Five Python binding fixture/validation/export test methods | Passed |
 | Existing pre-commit formatting/check hooks, including new files explicitly | Passed |
 | git diff --check | Passed |
 | Hardware, bus load, timing, calibration, motor/holding safety | Not executed |
@@ -58,3 +58,9 @@ CTest logs are under `build/sysid/Testing/Temporary/LastTest.log` and `build/sys
 Kernel SO_RXQ_OVFL reporting is implemented but real CAN/kernel queue overflow has not been induced. Thread serialization and GIL-release behavior are part of the implementation; real-time scheduling and loaded multi-thread execution have not been established by these tests. V1 has no sample session/boot ID, so indistinguishable resets and concurrent external writers cannot be completely disambiguated. Drain quiet intervals/hard limits cannot prove all firmware/controller queues empty. These constraints are documented in [the API guide](SYSTEM_IDENTIFICATION.md).
 
 The downstream migration plan is in [the damiao_ws handoff](DAMIAO_WS_SYSID_HANDOFF.md). No de-filtering, model fitting, excitation operation, hardware setup, or automatic motor shutdown is provided by this library change.
+
+## Independent safety extension verification (2026-10-04)
+
+New C++ tests cover live-session attribution, monotonic newest-only delivery across out-of-order frames, independence from canonical recording gaps, reverse/offset transformation, explicit MOS temperature, live-only heartbeat, stop fencing, safety-status reserved fields and exact guard configuration readback. The mixed SocketCAN boundary test additionally checks that actual holder fault 0xD survives decoding/callback into Motor.get_fault(). Python tests exercise the new decoder fields and exports. Both CTest executables pass under normal and address/undefined sanitizer builds.
+
+The workspace separately exercises independent live monitoring during a blocked storage sink, stale/torque shutdown, per-node capability checks and joint-to-raw phase limits. These are offline software tests, not hardware bus/stop-time certification.

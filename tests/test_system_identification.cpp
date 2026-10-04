@@ -623,10 +623,96 @@ void test_reliable_reordering() {
     check(plain.read_samples().size() == 1, "non-scan capture needs only base record");
     check(plain.acknowledge_data(1, 1000).accepted(), "non-scan durable ACK");
 }
+void test_guard_configuration() {
+    auto transport = std::make_unique<Mock>();
+    auto* wire = transport.get();
+    SystemIdentification api(std::move(transport), 1);
+    Frame safety{response_id, true, CANFD_BRS, std::vector<uint8_t>(64), 1};
+    safety.payload[0] = 1;
+    safety.payload[1] = 0x84;
+    safety.payload[2] = 1;
+    safety.payload[3] = 9;
+    put_u32(safety, 12, 5000);
+    put_u32(safety, 16, 40);
+    bool mismatch = false;
+    wire->responder = [&](const auto& r) {
+        auto op = static_cast<Operation>(r[2]);
+        const auto seq = request_sequence(r);
+        if (r[2] >= 24 && r[2] <= 27) put_u32(safety, 28 + 4 * (r[2] - 24), seq);
+        if (op == Operation::SAFETY_STATUS) {
+            auto f = safety;
+            put_u32(f, 4, seq);
+            if (mismatch) put_float(f, 40, 10);
+            wire->frames.push_back(f);
+        } else
+            wire->frames.push_back(ack(op, seq));
+    };
+    api.configure_guard(-.2, .4, .3, 2, 1000);
+    check(wire->sent.size() == 6, "four staged bounds, commit and readback");
+    mismatch = true;
+    expect_error<SessionError>([&] { api.configure_guard(-.2, .4, .3, 2, 1000); });
+    expect_error<std::invalid_argument>([&] { api.configure_guard(.4, -.2, .3, 2, 1000); });
+    std::cout << "guard API validates limits and exact firmware readback passed\n";
+}
+
+void test_live_and_safety() {
+    auto transport = std::make_unique<Mock>();
+    auto* wire = transport.get();
+    SystemIdentification api(std::move(transport), 1, .2, true);
+    check(api.start_live(1000).accepted(), "live start");
+    const uint32_t session = request_sequence(wire->sent.back());
+    auto live = [&](uint32_t tick, uint32_t owner) {
+        auto f = sample(0, tick);
+        f.can_id = 0x6E0;
+        f.payload[1] = 0x92;
+        f.payload[3] = 1;
+        put_u32(f, 4, owner);
+        return f;
+    };
+    wire->frames.push_back(live(100, session));
+    wire->frames.push_back(live(80, session));
+    wire->frames.push_back(live(120, session));
+    auto latest = api.read_latest();
+    check(latest && latest->sample.endpoint_tick == 120, "out of order live skips old state");
+    check(std::abs(latest->position + 1.05) < 1e-6 && latest->torque_estimate == -1.5 &&
+              latest->mos_temperature == 3 && latest->averaged_iq == -3,
+          "live reversal and offset once");
+    check(api.read_samples().empty(), "live must never enter canonical recorded samples");
+    wire->frames.push_back(live(110, session));
+    wire->frames.push_back(live(140, session + 1));
+    check(!api.read_latest(), "old and foreign live remain rejected after read");
+    wire->frames.push_back(live(160, session));
+    check(api.read_latest()->sample.endpoint_tick == 160,
+          "live not gated by missing record sequence");
+    check(api.heartbeat(1000).accepted(), "live heartbeat without capture");
+    check(api.stop_live(1000).accepted(), "live stop");
+    wire->frames.push_back(live(180, session));
+    check(!api.read_latest(), "live stop fences leftovers");
+    Frame safety{response_id, true, CANFD_BRS, std::vector<uint8_t>(64), 1};
+    safety.payload[0] = 1;
+    safety.payload[1] = 0x84;
+    safety.payload[2] = 1;
+    safety.payload[3] = 1;
+    put_u32(safety, 12, 5000);
+    put_u32(safety, 16, 40);
+    check(decode_safety(safety).deadman_enabled, "safety capability decoder");
+    auto bad = safety;
+    bad.payload[48] = 1;
+    expect_error<ProtocolError>([&] { decode_safety(bad); });
+    wire->responder = [&](const auto& r) {
+        auto f = safety;
+        put_u32(f, 4, request_sequence(r));
+        wire->frames.push_back(f);
+    };
+    check(api.safety_status(1000).safety->command_lease_ticks == 5000, "safety status demux");
+    std::cout << "live channel monotonic/session/direction and deadman capability checks passed\n";
+}
 }  // namespace
 
 int main() {
     try {
+        test_guard_configuration();
+        test_live_and_safety();
         test_reliable_reordering();
         test_scan_management();
         test_fixture_and_validation();

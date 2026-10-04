@@ -39,7 +39,15 @@ enum class Operation : uint8_t {
     SCAN_STATUS,
     SCAN_ABORT,
     DATA_ACK,
-    DATA_REPLAY
+    DATA_REPLAY,
+    SAFETY_STATUS,
+    LIVE_START,
+    LIVE_STOP,
+    GUARD_LOWER,
+    GUARD_UPPER,
+    GUARD_SPEED,
+    GUARD_TORQUE,
+    GUARD_ARM
 };
 enum class Result : uint8_t {
     ACCEPTED = 0,
@@ -108,6 +116,17 @@ struct Information {
     Frame raw;
 };
 
+struct SafetyInformation {
+    uint8_t node = 0;
+    uint32_t request_sequence = 0, control_tick = 0, command_lease_ticks = 0;
+    uint32_t live_period_ticks = 0, last_command_tick = 0, live_overwritten = 0;
+    bool deadman_enabled = false, deadman_latched = false, live_active = false;
+    bool guard_enabled = false;
+    uint8_t guard_reason = 0;
+    float guard_lower = 0, guard_upper = 0, guard_max_velocity = 0, guard_torque_limit = 0;
+    Frame raw;
+};
+
 struct Sample {
     uint8_t version = 1;
     uint8_t node = 0;
@@ -151,6 +170,8 @@ struct Measurement {
     double torque_estimate = 0;
     double mit_feedforward_torque = 0;
     double instantaneous_iq = 0;
+    // Live snapshots only; calibration frames retain averaged Iq at offset 28.
+    double mos_temperature = 0;
 };
 
 struct ScanConfig {
@@ -171,11 +192,12 @@ struct ScanRecord {
 ScanRecord decode_scan_record(const Frame& frame);
 
 struct Reply {
+    std::optional<SafetyInformation> safety;
     std::optional<Ack> ack;
     std::optional<Information> information;
     std::optional<ScanRecord> scan;
     bool accepted() const {
-        return scan || information || (ack && ack->result == Result::ACCEPTED);
+        return safety || scan || information || (ack && ack->result == Result::ACCEPTED);
     }
 };
 
@@ -210,6 +232,8 @@ struct StopResult {
 Ack decode_ack(const Frame& frame);
 Information decode_information(const Frame& frame);
 Sample decode_sample(const Frame& frame);
+SafetyInformation decode_safety(const Frame& frame);
+Measurement decode_live(const Frame& frame, double offset = 0, bool reversed = false);
 std::array<uint8_t, 8> encode_request(uint8_t node, Operation operation, uint8_t argument,
                                       uint32_t request_sequence);
 // Command sequence skips UINT32_MAX. Unknown counters cannot be subtracted.
@@ -227,7 +251,8 @@ public:
 class SystemIdentification {
 public:
     explicit SystemIdentification(const std::string& interface, uint8_t node, double offset = 0,
-                                  bool reversed = false, size_t queue_capacity = 2048);
+                                  bool reversed = false, size_t queue_capacity = 2048,
+                                  bool live_only = false);
     SystemIdentification(std::unique_ptr<Transport> transport, uint8_t node, double offset = 0,
                          bool reversed = false, size_t queue_capacity = 2048);
     ~SystemIdentification() = default;  // Closes socket; never STOP/disable/control in destructor.
@@ -236,6 +261,12 @@ public:
 
     Reply info(int timeout_us = 100000);
     Reply status(int timeout_us = 100000);
+    Reply safety_status(int timeout_us = 100000);
+    Reply start_live(int timeout_us = 100000);
+    Reply stop_live(int timeout_us = 100000);
+    void configure_guard(double lower, double upper, double max_velocity, double torque_limit,
+                         int timeout_us = 100000);
+    std::optional<Measurement> read_latest(int timeout_us = 0, size_t max_frames = 256);
     StartResult start(int rate_hz = 500, int timeout_us = 100000, bool reliable = false);
     Reply acknowledge_data(uint32_t next_sequence, int timeout_us = 20000);
     Reply replay_data(uint32_t next_sequence, int timeout_us = 20000);
@@ -276,6 +307,9 @@ private:
     size_t capacity_;
     uint32_t request_sequence_;
     std::optional<uint32_t> session_;
+    std::optional<uint32_t> live_session_;
+    std::optional<Measurement> latest_live_;
+    std::optional<uint32_t> live_last_tick_;
     std::optional<Information> last_information_;
     std::optional<uint32_t> start_fence_tick_;
     uint16_t period_ = 0;

@@ -152,6 +152,7 @@ int main() {
             feedback.can_id = 0x11;
             feedback.len = 8;
             feedback.flags = CANFD_BRS;
+            feedback.data[0] = 0xD1;  // J1 communication/safety fault.
             require(::write(peer_fd, &ack, CAN_MTU) == CAN_MTU, "legacy ACK traffic");
             require(::write(peer_fd, &telemetry, CANFD_MTU) == CANFD_MTU, "legacy sample traffic");
             require(::write(peer_fd, &feedback, CANFD_MTU) == CANFD_MTU,
@@ -159,6 +160,8 @@ int main() {
             const auto received = motor.recv_all(10000);
             require(received.ok && received.expect == 1 && received.received == 1,
                     "legacy receive ignores sysid traffic and accepts motor feedback");
+            require(motor.get_motor(0).get_fault() == 13,
+                    "holder fault preserved from feedback header");
         }
         ::close(peer_fd);
         std::cout << "mixed classic/FD legacy transport and cleanup passed\n";
