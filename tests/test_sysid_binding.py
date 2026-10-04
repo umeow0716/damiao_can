@@ -43,6 +43,11 @@ class BindingTests(unittest.TestCase):
         status = dc.decode_sysid_safety(frame(0x6F1, bytes(safety), True, 1))
         self.assertTrue(status.guard_enabled)
         self.assertEqual(status.guard_torque_limit, 2.)
+        safety[3] = 11
+        safety[44] = 8
+        status = dc.decode_sysid_safety(frame(0x6F1, bytes(safety), True, 1))
+        self.assertTrue(status.deadman_latched)
+        self.assertEqual(status.guard_reason, 8)
         self.assertTrue(hasattr(dc.SystemIdentification, 'configure_guard'))
         self.assertTrue(hasattr(dc.SystemIdentification, 'read_latest'))
         self.assertIn('SysIdSafetyInformation', dc.__all__)

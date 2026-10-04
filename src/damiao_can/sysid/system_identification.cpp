@@ -231,7 +231,7 @@ Sample decode_sample(const Frame& frame) {
 SafetyInformation decode_safety(const Frame& frame) {
     validate(frame, response_id, 64, true);
     const auto& d = frame.payload;
-    if (d[1] != 0x84 || (d[3] & ~15U) || u32(d, 12) == 0 || u32(d, 16) != 40 || d[44] > 7)
+    if (d[1] != 0x84 || (d[3] & ~15U) || u32(d, 12) == 0 || u32(d, 16) != 40 || d[44] > 8)
         throw ProtocolError("invalid safety capability/status");
     validate_node(d[2]);
     for (size_t i = 45; i < 64; ++i)

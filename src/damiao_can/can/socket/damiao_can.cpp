@@ -20,6 +20,7 @@
 #include <cmath>
 #include <cstring>
 #include <damiao_can/can/socket/damiao_can.hpp>
+#include <damiao_can/damiao_motor/dm_motor_device.hpp>
 #include <iomanip>
 #include <limits>
 #include <optional>
@@ -387,6 +388,17 @@ DamiaoCANRecvResult DamiaoCAN::recv_all(int timeout_us) {
         return static_cast<int>(std::chrono::duration_cast<microseconds>(deadline - now).count());
     };
 
+    // A matching ID alone is insufficient: invalid/ignored motor data must
+    // not make stale state look like a successful explicit refresh.
+    auto dispatch_valid_reply = [&](auto& frame) {
+        auto found = devices.find(frame.can_id);
+        if (found == devices.end()) return false;
+        auto* motor = dynamic_cast<damiao_motor::DMCANDevice*>(found->second.get());
+        const uint64_t before = motor ? motor->get_reply_revision() : 0;
+        master_can_device_collection_->dispatch_frame_callback(frame);
+        return motor == nullptr || motor->get_reply_revision() != before;
+    };
+
     while (responded_ids.size() < devices.size()) {
         const int remaining = remaining_timeout_us();
         if (remaining <= 0 || !can_socket_->is_data_available(remaining)) {
@@ -401,14 +413,14 @@ DamiaoCANRecvResult DamiaoCAN::recv_all(int timeout_us) {
             read_ok = can_socket_->read_canfd_frame(frame);
             if (read_ok) {
                 response_id = frame.can_id & CAN_SFF_MASK;
-                master_can_device_collection_->dispatch_frame_callback(frame);
+                read_ok = dispatch_valid_reply(frame);
             }
         } else {
             can_frame frame;
             read_ok = can_socket_->read_can_frame(frame);
             if (read_ok) {
                 response_id = frame.can_id & CAN_SFF_MASK;
-                master_can_device_collection_->dispatch_frame_callback(frame);
+                read_ok = dispatch_valid_reply(frame);
             }
         }
 

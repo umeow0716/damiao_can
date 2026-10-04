@@ -38,6 +38,7 @@ public:
     canfd_frame create_canfd_frame(canid_t send_can_id, std::vector<uint8_t> data);
     // Getter method to access motor state
     Motor& get_motor() { return motor_; }
+    uint64_t get_reply_revision() const { return reply_revision_; }
     void set_callback_mode(CallbackMode callback_mode) { callback_mode_ = callback_mode; }
     ControlMode get_control_mode() const { return control_mode_; }
     void set_control_mode(ControlMode control_mode) { control_mode_ = control_mode; }
@@ -46,6 +47,7 @@ private:
     std::vector<uint8_t> get_data_from_frame(const can_frame& frame);
     std::vector<uint8_t> get_data_from_frame(const canfd_frame& frame);
     Motor& motor_;
+    uint64_t reply_revision_ = 0;
     CallbackMode callback_mode_;
     bool use_fd_;  // Track if using CAN-FD
     ControlMode control_mode_ = ControlMode::MIT;

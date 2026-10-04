@@ -162,6 +162,20 @@ int main() {
                     "legacy receive ignores sysid traffic and accepts motor feedback");
             require(motor.get_motor(0).get_fault() == 13,
                     "holder fault preserved from feedback header");
+            feedback.len = 7;
+            require(::write(peer_fd, &feedback, CANFD_MTU) == CANFD_MTU,
+                    "inject truncated motor reply");
+            auto invalid = motor.recv_all(3000);
+            require(!invalid.ok && invalid.received == 0 && invalid.missing.size() == 1,
+                    "short motor packet cannot satisfy explicit refresh");
+            feedback.len = 8;
+            feedback.can_id |= CAN_EFF_FLAG;
+            require(::write(peer_fd, &feedback, CANFD_MTU) == CANFD_MTU,
+                    "inject wrong motor ID format");
+            invalid = motor.recv_all(3000);
+            require(!invalid.ok && invalid.received == 0, "extended alias cannot satisfy refresh");
+            require(motor.get_motor(0).get_fault() == 13,
+                    "invalid replies never replace valid fault");
         }
         ::close(peer_fd);
         std::cout << "mixed classic/FD legacy transport and cleanup passed\n";

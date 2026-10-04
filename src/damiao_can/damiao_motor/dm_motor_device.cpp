@@ -41,6 +41,8 @@ void DMCANDevice::callback(const can_frame& frame) {
         return;
     }
 
+    if ((frame.can_id & (CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_ERR_FLAG)) != 0) return;
+    if (frame.can_dlc != 8 || frame.can_id != motor_.get_recv_can_id()) return;
     std::vector<uint8_t> data = get_data_from_frame(frame);
 
     switch (callback_mode_) {
@@ -51,6 +53,7 @@ void DMCANDevice::callback(const can_frame& frame) {
                 if (frame.can_id == motor_.get_recv_can_id() && result.valid) {
                     motor_.update_state(result.position, result.velocity, result.torque,
                                         result.t_mos, result.t_rotor, result.fault);
+                    ++reply_revision_;
                 }
             }
             break;
@@ -58,6 +61,7 @@ void DMCANDevice::callback(const can_frame& frame) {
             ParamResult result = CanPacketDecoder::parse_motor_param_data(data);
             if (result.valid) {
                 motor_.set_temp_param(result.rid, result.value);
+                ++reply_revision_;
             }
             break;
         }
@@ -79,17 +83,21 @@ void DMCANDevice::callback(const canfd_frame& frame) {
         return;
     }
 
+    if ((frame.can_id & (CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_ERR_FLAG)) != 0) return;
+    if (frame.len != 8) return;
     std::vector<uint8_t> data = get_data_from_frame(frame);
     if (callback_mode_ == STATE) {
         StateResult result = CanPacketDecoder::parse_motor_state_data(motor_, data);
         if (result.valid) {
             motor_.update_state(result.position, result.velocity, result.torque, result.t_mos,
                                 result.t_rotor, result.fault);
+            ++reply_revision_;
         }
     } else if (callback_mode_ == PARAM) {
         ParamResult result = CanPacketDecoder::parse_motor_param_data(data);
         if (result.valid) {
             motor_.set_temp_param(result.rid, result.value);
+            ++reply_revision_;
         }
     } else if (callback_mode_ == IGNORE) {
         return;

@@ -1,6 +1,7 @@
 #include <cmath>
 #include <cstring>
 #include <damiao_can/damiao_motor/dm_motor.hpp>
+#include <damiao_can/damiao_motor/dm_motor_device.hpp>
 #include <damiao_can/sysid/system_identification.hpp>
 #include <functional>
 #include <iostream>
@@ -623,6 +624,40 @@ void test_reliable_reordering() {
     check(plain.read_samples().size() == 1, "non-scan capture needs only base record");
     check(plain.acknowledge_data(1, 1000).accepted(), "non-scan durable ACK");
 }
+void test_motor_reply_validation() {
+    using namespace damiao_can::damiao_motor;
+    Motor motor(MotorType::DM4310, 1, 0x11);
+    DMCANDevice classic(motor, CAN_SFF_MASK, false);
+    can_frame f{};
+    f.can_id = 0x11;
+    f.can_dlc = 8;
+    f.data[0] = 0xD1;
+    classic.callback(f);
+    check(classic.get_reply_revision() == 1 && motor.get_fault() == 13, "classic fault update");
+    for (auto size : {7, 255}) {
+        f.can_dlc = size;
+        classic.callback(f);
+    }
+    f.can_dlc = 8;
+    f.can_id |= CAN_RTR_FLAG;
+    classic.callback(f);
+    check(classic.get_reply_revision() == 1, "invalid classic shapes cannot update motor");
+    f.can_id = 0x11;
+    classic.set_callback_mode(CallbackMode::PARAM);
+    f.data[2] = 0x33;
+    f.data[3] = 10;
+    classic.callback(f);
+    check(classic.get_reply_revision() == 2, "valid parameter reply still counts");
+    DMCANDevice fd(motor, CAN_SFF_MASK, true);
+    canfd_frame ff{};
+    ff.can_id = 0x11;
+    for (auto size : {7, 64, 255}) {
+        ff.len = size;
+        fd.callback(ff);
+    }
+    check(fd.get_reply_revision() == 0, "invalid FD lengths rejected before payload access");
+}
+
 void test_guard_configuration() {
     auto transport = std::make_unique<Mock>();
     auto* wire = transport.get();
@@ -711,6 +746,7 @@ void test_live_and_safety() {
 
 int main() {
     try {
+        test_motor_reply_validation();
         test_guard_configuration();
         test_live_and_safety();
         test_reliable_reordering();
