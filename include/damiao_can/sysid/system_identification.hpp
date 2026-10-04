@@ -122,6 +122,7 @@ struct SafetyInformation {
     uint32_t live_period_ticks = 0, last_command_tick = 0, live_overwritten = 0;
     bool deadman_enabled = false, deadman_latched = false, live_active = false;
     bool guard_enabled = false;
+    bool applied_velocity_supported = false;
     uint8_t guard_reason = 0;
     float guard_lower = 0, guard_upper = 0, guard_max_velocity = 0, guard_torque_limit = 0;
     Frame raw;
@@ -140,6 +141,8 @@ struct Sample {
     float averaged_iq = 0;
     float torque_estimate = 0;
     float mit_feedforward_torque = 0;
+    float applied_velocity_setpoint = 0;
+    bool velocity_setpoint_valid = false;
     float instantaneous_iq = 0;
     uint32_t applied_command_tick = 0;
     float temperature = 0;
@@ -149,6 +152,7 @@ struct Sample {
     uint8_t mode = 0;
     uint8_t fault = 0;
     Frame raw;
+    bool velocity_setpoint_changed() const { return flags & 32; }
     bool armed() const { return flags & 1; }
     bool current_saturated() const { return flags & 2; }
     bool voltage_saturated() const { return flags & 4; }
@@ -169,6 +173,7 @@ struct Measurement {
     double averaged_iq = 0;
     double torque_estimate = 0;
     double mit_feedforward_torque = 0;
+    double applied_velocity_setpoint = 0;
     double instantaneous_iq = 0;
     // Live snapshots only; calibration frames retain averaged Iq at offset 28.
     double mos_temperature = 0;

@@ -47,7 +47,11 @@ void validate(const Frame& frame, uint32_t id, size_t length, bool fd) {
     if (fd ? ((frame.flags & ~(CANFD_BRS | CANFD_FDF)) || !(frame.flags & CANFD_BRS))
            : frame.flags != 0)
         throw ProtocolError("invalid sysid CAN-FD flags (FD64 requires BRS)");
-    if (frame.payload[0] != 1) throw ProtocolError("unsupported sysid protocol version");
+    const bool velocity_v2 = length == 64 && fd && frame.payload[0] == 2 &&
+                             (frame.payload[1] == 0x90 || frame.payload[1] == 0x92) &&
+                             frame.payload[62] == 3;
+    if (frame.payload[0] != 1 && !velocity_v2)
+        throw ProtocolError("unsupported sysid protocol version");
 }
 
 void validate_node(uint8_t node) {
@@ -196,8 +200,8 @@ Sample decode_sample(const Frame& frame) {
     validate(frame, sample_id, 64, true);
     const auto& data = frame.payload;
     const auto period = uint16_t(data[60]) | (uint16_t(data[61]) << 8);
-    if (data[1] != 0x90 || (data[3] & 0xE0) || (period != 20 && period != 40) || data[62] < 1 ||
-        data[62] > 4)
+    if (data[1] != 0x90 || (data[3] & (data[0] == 2 ? 0xC0 : 0xE0)) ||
+        (period != 20 && period != 40) || data[62] < 1 || data[62] > 4)
         throw ProtocolError("invalid sysid sample type, flags, period or mode");
     validate_node(data[2]);
     Sample result;
@@ -212,7 +216,11 @@ Sample decode_sample(const Frame& frame) {
     result.velocity = f32(data, 24);
     result.averaged_iq = f32(data, 28);
     result.torque_estimate = f32(data, 32);
-    result.mit_feedforward_torque = f32(data, 36);
+    if (data[0] == 2) {
+        result.applied_velocity_setpoint = f32(data, 36);
+        result.velocity_setpoint_valid = true;
+    } else
+        result.mit_feedforward_torque = f32(data, 36);
     result.instantaneous_iq = f32(data, 40);
     result.applied_command_tick = u32(data, 44);
     result.temperature = f32(data, 48);
@@ -231,7 +239,7 @@ Sample decode_sample(const Frame& frame) {
 SafetyInformation decode_safety(const Frame& frame) {
     validate(frame, response_id, 64, true);
     const auto& d = frame.payload;
-    if (d[1] != 0x84 || (d[3] & ~15U) || u32(d, 12) == 0 || u32(d, 16) != 40 || d[44] > 8)
+    if (d[1] != 0x84 || (d[3] & ~31U) || u32(d, 12) == 0 || u32(d, 16) != 40 || d[44] > 8)
         throw ProtocolError("invalid safety capability/status");
     validate_node(d[2]);
     for (size_t i = 45; i < 64; ++i)
@@ -248,6 +256,7 @@ SafetyInformation decode_safety(const Frame& frame) {
     s.deadman_latched = d[3] & 2;
     s.live_active = d[3] & 4;
     s.guard_enabled = d[3] & 8;
+    s.applied_velocity_supported = d[3] & 16;
     s.guard_reason = d[44];
     s.guard_lower = f32(d, 28);
     s.guard_upper = f32(d, 32);
@@ -281,6 +290,7 @@ Measurement decode_live(const Frame& frame, double offset, bool reversed) {
     m.torque_estimate = sign * m.sample.torque_estimate;
     m.instantaneous_iq = sign * m.sample.instantaneous_iq;
     m.mit_feedforward_torque = sign * m.sample.mit_feedforward_torque;
+    m.applied_velocity_setpoint = sign * m.sample.applied_velocity_setpoint;
     m.unwrapped_endpoint_tick = m.sample.endpoint_tick;
     return m;
 }
@@ -422,6 +432,7 @@ void SystemIdentification::accept_sample(const Sample& sample) {
     measurement.averaged_iq = direction_ * sample.averaged_iq;
     measurement.torque_estimate = direction_ * sample.torque_estimate;
     measurement.mit_feedforward_torque = direction_ * sample.mit_feedforward_torque;
+    measurement.applied_velocity_setpoint = direction_ * sample.applied_velocity_setpoint;
     measurement.instantaneous_iq = direction_ * sample.instantaneous_iq;
     if (samples_.size() == capacity_)
         ++diagnostics_.host_sample_dropped;

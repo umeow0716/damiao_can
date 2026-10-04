@@ -66,3 +66,5 @@ New C++ tests cover live-session attribution, monotonic newest-only delivery acr
 The workspace separately exercises independent live monitoring during a blocked storage sink, stale/torque shutdown, per-node capability checks and joint-to-raw phase limits. These are offline software tests, not hardware bus/stop-time certification.
 
 Follow-up legacy freshness tests reject truncated/oversized motor payloads before buffer access, extended/RTR aliases, and replies that did not update state. Explicit recv_all counts a motor only when its decoded-reply revision changes; valid parameter responses remain supported. Normal and sanitizer CTest exercise the boundary using local sockets and callback fixtures.
+
+Applied VEL reference regression: native SDK and Python bindings cover VEL v2, rad/s versus Nm, legacy VEL invalidity, reversed live reference, mixed-reference flag, and invalid version/mode. Firmware tests check stable and mixed reference intervals at 500/1000 Hz plus the live stream. The documented decoder is checked against both original MIT and new VEL native C fixtures.

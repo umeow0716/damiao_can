@@ -744,8 +744,45 @@ void test_live_and_safety() {
 }
 }  // namespace
 
+void test_applied_velocity_v2() {
+    Frame frame;
+    frame.can_id = sample_id;
+    frame.fd = true;
+    frame.flags = 1;
+    frame.payload.resize(64);
+    frame.payload[0] = 2;
+    frame.payload[1] = 0x90;
+    frame.payload[2] = 4;
+    frame.payload[3] = 1;
+    frame.payload[60] = 40;
+    frame.payload[62] = 3;
+    frame.payload[63] = 1;
+    put_float(frame, 36, -.06f);
+    const auto sample = decode_sample(frame);
+    check(sample.velocity_setpoint_valid && sample.applied_velocity_setpoint == -.06f &&
+              sample.mit_feedforward_torque == 0,
+          "VEL v2 units/validity");
+    frame.payload[3] |= 32;
+    check(decode_sample(frame).velocity_setpoint_changed(), "mixed setpoint interval");
+    frame.payload[3] = 1;
+    frame.can_id = 0x6E0;
+    frame.payload[1] = 0x92;
+    const auto live = decode_live(frame, .1, true);
+    check(std::abs(live.applied_velocity_setpoint - .06) < 1e-7 && live.mit_feedforward_torque == 0,
+          "reversed live velocity reference");
+    frame.payload[62] = 1;
+    expect_error<ProtocolError>([&] { decode_live(frame); });
+    frame.can_id = sample_id;
+    frame.payload[1] = 0x90;
+    frame.payload[0] = 1;
+    frame.payload[62] = 3;
+    check(!decode_sample(frame).velocity_setpoint_valid,
+          "legacy VEL not misrepresented as a known setpoint");
+}
+
 int main() {
     try {
+        test_applied_velocity_v2();
         test_motor_reply_validation();
         test_guard_configuration();
         test_live_and_safety();

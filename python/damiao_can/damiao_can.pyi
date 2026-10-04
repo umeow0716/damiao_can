@@ -1034,6 +1034,9 @@ class SysIdSample:
     averaged_iq: float
     torque_estimate: float
     mit_feedforward_torque: float
+    applied_velocity_setpoint: float
+    velocity_setpoint_valid: bool
+    velocity_setpoint_changed: bool
     instantaneous_iq: float
     applied_command_tick: int
     temperature: float
@@ -1067,6 +1070,7 @@ class SysIdMeasurement:
     averaged_iq: float
     torque_estimate: float
     mit_feedforward_torque: float
+    applied_velocity_setpoint: float
     instantaneous_iq: float
     mos_temperature: float
 
@@ -1083,6 +1087,7 @@ class SysIdSafetyInformation:
     deadman_latched: bool
     live_active: bool
     guard_enabled: bool
+    applied_velocity_supported: bool
     guard_reason: int
     guard_lower: float
     guard_upper: float

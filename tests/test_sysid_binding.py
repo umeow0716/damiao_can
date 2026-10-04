@@ -24,6 +24,30 @@ def frame(can_id, payload, fd=False, flags=0):
 
 
 class BindingTests(unittest.TestCase):
+    def test_applied_velocity_v2(self):
+        payload = bytearray(FIXTURE)
+        payload[0] = 2
+        payload[3] = 1
+        payload[62] = 3
+        struct.pack_into("<f", payload, 36, -.08)
+        sample = dc.decode_sysid_sample(frame(0x6F2, bytes(payload), True, 1))
+        self.assertTrue(sample.velocity_setpoint_valid)
+        self.assertAlmostEqual(sample.applied_velocity_setpoint, -.08)
+        self.assertEqual(sample.mit_feedforward_torque, 0)
+        payload[3] |= 32
+        self.assertTrue(dc.decode_sysid_sample(
+            frame(0x6F2, bytes(payload), True, 1)).velocity_setpoint_changed)
+        payload[3] = 1
+        payload[1] = 0x92
+        m = dc.decode_sysid_live(
+            frame(0x6E0, bytes(payload), True, 1), offset=.5, reversed=True)
+        self.assertAlmostEqual(m.applied_velocity_setpoint, .08)
+        self.assertEqual(m.mit_feedforward_torque, 0)
+        payload[0] = 1
+        payload[1] = 0x90
+        self.assertFalse(dc.decode_sysid_sample(
+            frame(0x6F2, bytes(payload), True, 1)).velocity_setpoint_valid)
+
     def test_live_and_guard_exports(self):
         live = bytearray(FIXTURE)
         live[1] = 0x92

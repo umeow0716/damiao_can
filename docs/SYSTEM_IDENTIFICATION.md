@@ -188,3 +188,11 @@ Wire layout and exact firmware behavior: sibling firmware `docs/SYSTEM_IDENTIFIC
 Explicit `recv_all()` now counts a motor reply only after a valid state/parameter callback update. A matching CAN ID with malformed length, incorrect frame format or ignored data cannot report successful refresh with old motor state. This does not add a wire request sequence to legacy feedback; firmware guard and independent live freshness remain necessary.
 
 Guard reason 8 indicates encoder position/velocity publication older than 400 nominal ticks (20 ms). Firmware checks this independently; applications also reject live snapshots whose publication markers are stale, even when packet endpoint timestamps are fresh. Publication freshness is not an encoder acquisition-time or hardware-health certificate.
+
+## Applied VEL reference
+
+SAFETY_STATUS now exposes `applied_velocity_supported` (flags bit4). VEL canonical/live frames use streaming version 2 with offset36 containing the speed loop's applied output-rad/s reference after clamp/slew. Management and all other-mode streaming retain version 1. The SDK still decodes older VEL version 1 but marks `sample.velocity_setpoint_valid=False`; it never guesses a velocity setpoint from old MIT torque data.
+
+Read `measurement.applied_velocity_setpoint` for the host-reversed value, `sample.applied_velocity_setpoint` for wire coordinates, and `sample.velocity_setpoint_changed` to detect changes within a calibration interval. Reference is an endpoint value, so applications must also check its stability between frames. Position offset does not affect this velocity. MIT feedforward is zero for VEL v2 to prevent unit confusion. Existing sample sequence, applied command marker, timestamp, live safety and reliable retention semantics remain.
+
+Update firmware and SDK together; an old SDK rejects the new capability/version. Before moving a VEL test axis, require `safety_status().safety.applied_velocity_supported`.
