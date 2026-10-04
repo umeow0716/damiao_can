@@ -565,6 +565,12 @@ void test_reliable_reordering() {
     api.configure_scan(c, 1000);
     auto started = api.start(500, 1000, true);
     check(peer->sent.back()[3] == 2, "500 Hz reliable START option");
+    auto stale = sample_fixture();
+    put_u32(stale, 4, 1000);
+    put_u32(stale, 8, 0);
+    peer->frames.push_back(stale);
+    check(api.read_samples().empty(),
+          "old-session large sequence rejected by time fence before window check");
     auto base = [&](uint32_t n) {
         auto f = sample_fixture();
         put_u32(f, 4, n);

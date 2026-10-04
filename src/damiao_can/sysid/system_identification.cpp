@@ -394,13 +394,13 @@ bool SystemIdentification::receive_one(int timeout_us) {
             auto sample = decode_sample(*frame);
             if (reliable_ && sample.node == node_) {
                 if (sample.sequence >= reliable_next_) {
-                    if (sample.sequence - reliable_next_ >= 128U)
-                        throw ProtocolError("reliable base window exceeded");
                     if (start_fence_tick_ &&
                         (uint32_t(sample.endpoint_tick - *start_fence_tick_) == 0 ||
                          uint32_t(sample.endpoint_tick - *start_fence_tick_) > 0x7FFFFFFFU)) {
                         ++diagnostics_.session_discarded_samples;
                     } else {
+                        if (sample.sequence - reliable_next_ >= 128U)
+                            throw ProtocolError("reliable base window exceeded");
                         reliable_base_.emplace(sample.sequence, std::move(sample));
                         release_reliable_pairs();
                     }
