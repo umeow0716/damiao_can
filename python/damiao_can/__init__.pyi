@@ -6,6 +6,7 @@ This package provides Python bindings for the DamiaoCAN motor control system,
 allowing you to control DAMIAO motors through SocketCAN.
 """
 from __future__ import annotations
+from damiao_can.damiao_can import SysIdScanConfig, SysIdScanRecord, decode_sysid_scan_record
 from damiao_can.damiao_can import SysIdOperation
 from damiao_can.damiao_can import SysIdResult
 from damiao_can.damiao_can import SysIdFrame

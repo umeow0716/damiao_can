@@ -17,7 +17,22 @@ void bind_system_identification(nb::module_& m) {
         .value("STOP", Operation::STOP)
         .value("HEARTBEAT", Operation::HEARTBEAT)
         .value("INFO", Operation::INFO)
-        .value("STATUS", Operation::STATUS);
+        .value("STATUS", Operation::STATUS)
+        .value("SCAN_LOWER", Operation::SCAN_LOWER)
+        .value("SCAN_UPPER", Operation::SCAN_UPPER)
+        .value("SCAN_HOME", Operation::SCAN_HOME)
+        .value("SCAN_SPEED", Operation::SCAN_SPEED)
+        .value("SCAN_ACCEL", Operation::SCAN_ACCEL)
+        .value("SCAN_TORQUE", Operation::SCAN_TORQUE)
+        .value("SCAN_TEMPERATURE", Operation::SCAN_TEMPERATURE)
+        .value("SCAN_REPEATS", Operation::SCAN_REPEATS)
+        .value("SCAN_ERROR", Operation::SCAN_ERROR)
+        .value("SCAN_SECONDS", Operation::SCAN_SECONDS)
+        .value("SCAN_START", Operation::SCAN_START)
+        .value("SCAN_STATUS", Operation::SCAN_STATUS)
+        .value("DATA_ACK", Operation::DATA_ACK)
+        .value("DATA_REPLAY", Operation::DATA_REPLAY)
+        .value("SCAN_ABORT", Operation::SCAN_ABORT);
     nb::enum_<Result>(m, "SysIdResult")
         .value("ACCEPTED", Result::ACCEPTED)
         .value("BAD_VERSION", Result::BAD_VERSION)
@@ -112,9 +127,42 @@ void bind_system_identification(nb::module_& m) {
         .def_ro("torque_estimate", &Measurement::torque_estimate)
         .def_ro("mit_feedforward_torque", &Measurement::mit_feedforward_torque)
         .def_ro("instantaneous_iq", &Measurement::instantaneous_iq);
+    nb::class_<ScanConfig>(m, "SysIdScanConfig")
+        .def(nb::init<>())
+        .def_rw("lower", &ScanConfig::lower)
+        .def_rw("upper", &ScanConfig::upper)
+        .def_rw("home", &ScanConfig::home)
+        .def_rw("speed", &ScanConfig::speed)
+        .def_rw("acceleration", &ScanConfig::acceleration)
+        .def_rw("torque_limit", &ScanConfig::torque_limit)
+        .def_rw("temperature_limit", &ScanConfig::temperature_limit)
+        .def_rw("repeats", &ScanConfig::repeats)
+        .def_rw("tracking_error", &ScanConfig::tracking_error)
+        .def_rw("max_seconds", &ScanConfig::max_seconds);
+    nb::class_<ScanRecord>(m, "SysIdScanRecord")
+        .def_ro("node", &ScanRecord::node)
+        .def_ro("phase", &ScanRecord::phase)
+        .def_ro("reason", &ScanRecord::reason)
+        .def_ro("owned", &ScanRecord::owned)
+        .def_ro("active", &ScanRecord::active)
+        .def_ro("sequence", &ScanRecord::sequence)
+        .def_ro("endpoint_tick", &ScanRecord::endpoint_tick)
+        .def_ro("capture_session", &ScanRecord::capture_session)
+        .def_ro("scan_session", &ScanRecord::scan_session)
+        .def_ro("completed_legs", &ScanRecord::completed_legs)
+        .def_ro("planned_position", &ScanRecord::planned_position)
+        .def_ro("command_velocity", &ScanRecord::command_velocity)
+        .def_ro("raw_torque", &ScanRecord::raw_torque)
+        .def_ro("position", &ScanRecord::position)
+        .def_ro("home", &ScanRecord::home)
+        .def_ro("target", &ScanRecord::target)
+        .def_ro("start_tick", &ScanRecord::start_tick)
+        .def_ro("end_tick", &ScanRecord::end_tick)
+        .def_ro("raw", &ScanRecord::raw);
     nb::class_<Reply>(m, "SysIdReply")
         .def_ro("ack", &Reply::ack)
         .def_ro("information", &Reply::information)
+        .def_ro("scan", &Reply::scan)
         .def_prop_ro("accepted", &Reply::accepted);
     nb::class_<StartResult>(m, "SysIdStartResult")
         .def_ro("reply", &StartResult::reply)
@@ -123,6 +171,7 @@ void bind_system_identification(nb::module_& m) {
         .def_ro("recovered", &StartResult::recovered)
         .def_ro("accepted", &StartResult::accepted);
     nb::class_<Diagnostics>(m, "SysIdDiagnostics")
+        .def_ro("host_scan_dropped", &Diagnostics::host_scan_dropped)
         .def_ro("host_sample_dropped", &Diagnostics::host_sample_dropped)
         .def_ro("host_reply_dropped", &Diagnostics::host_reply_dropped)
         .def_ro("host_other_dropped", &Diagnostics::host_other_dropped)
@@ -140,6 +189,7 @@ void bind_system_identification(nb::module_& m) {
 
     m.def("decode_sysid_ack", &decode_ack, nb::arg("frame"));
     m.def("decode_sysid_information", &decode_information, nb::arg("frame"));
+    m.def("decode_sysid_scan_record", &decode_scan_record);
     m.def("decode_sysid_sample", &decode_sample, nb::arg("frame"));
     m.def(
         "encode_sysid_request",
@@ -159,7 +209,12 @@ void bind_system_identification(nb::module_& m) {
         .def("status", &SystemIdentification::status, nb::arg("timeout_us") = 100000,
              nb::call_guard<nb::gil_scoped_release>())
         .def("start", &SystemIdentification::start, nb::arg("rate_hz") = 500,
-             nb::arg("timeout_us") = 100000, nb::call_guard<nb::gil_scoped_release>())
+             nb::arg("timeout_us") = 100000, nb::arg("reliable") = false,
+             nb::call_guard<nb::gil_scoped_release>())
+        .def("acknowledge_data", &SystemIdentification::acknowledge_data, nb::arg("next_sequence"),
+             nb::arg("timeout_us") = 20000, nb::call_guard<nb::gil_scoped_release>())
+        .def("replay_data", &SystemIdentification::replay_data, nb::arg("next_sequence"),
+             nb::arg("timeout_us") = 20000, nb::call_guard<nb::gil_scoped_release>())
         .def("heartbeat", &SystemIdentification::heartbeat, nb::arg("timeout_us") = 100000,
              nb::call_guard<nb::gil_scoped_release>())
         .def("stop", &SystemIdentification::stop, nb::arg("timeout_us") = 100000,
@@ -177,6 +232,16 @@ void bind_system_identification(nb::module_& m) {
              nb::call_guard<nb::gil_scoped_release>())
         .def_prop_ro("owned_session", &SystemIdentification::owned_session,
                      nb::call_guard<nb::gil_scoped_release>())
+        .def("configure_scan", &SystemIdentification::configure_scan, nb::arg("config"),
+             nb::arg("timeout_us") = 100000, nb::call_guard<nb::gil_scoped_release>())
+        .def("start_scan", &SystemIdentification::start_scan, nb::arg("timeout_us") = 100000,
+             nb::call_guard<nb::gil_scoped_release>())
+        .def("scan_status", &SystemIdentification::scan_status, nb::arg("timeout_us") = 100000,
+             nb::call_guard<nb::gil_scoped_release>())
+        .def("abort_scan", &SystemIdentification::abort_scan, nb::arg("timeout_us") = 100000,
+             nb::call_guard<nb::gil_scoped_release>())
+        .def("take_scan_records", &SystemIdentification::take_scan_records,
+             nb::call_guard<nb::gil_scoped_release>())
         .def("close", &SystemIdentification::close, nb::call_guard<nb::gil_scoped_release>())
         .def(
             "__enter__", [](SystemIdentification& self) -> SystemIdentification& { return self; },

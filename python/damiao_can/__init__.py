@@ -28,6 +28,7 @@ __author__ = "Enactic, Inc."
 # Direct export of C++ classes - no wrappers
 __all__ = [
     # Passive System Identification telemetry v1
+    "SysIdScanConfig", "SysIdScanRecord", "decode_sysid_scan_record",
     "SysIdOperation",
     "SysIdResult",
     "SysIdFrame",

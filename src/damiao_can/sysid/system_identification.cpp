@@ -69,7 +69,8 @@ public:
     explicit SocketTransport(const std::string& interface) : socket_(interface, true) {
         const can_filter filters[] = {
             {response_id, CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_ERR_FLAG},
-            {sample_id, CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_ERR_FLAG}};
+            {sample_id, CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_ERR_FLAG},
+            {0x6F3, CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_ERR_FLAG}};
         const int enabled = 1;
         if (::setsockopt(socket_.get_socket_fd(), SOL_CAN_RAW, CAN_RAW_FILTER, filters,
                          sizeof(filters)) < 0 ||
@@ -146,7 +147,7 @@ private:
 Ack decode_ack(const Frame& frame) {
     validate(frame, response_id, 8, false);
     const auto& data = frame.payload;
-    if (data[1] != 0x80 || data[2] < 1 || data[2] > 5 || data[3] > 6)
+    if (data[1] != 0x80 || data[2] < 1 || data[2] > 20 || data[3] > 6)
         throw ProtocolError("invalid sysid ACK type, operation or result");
     return {data[0], static_cast<Operation>(data[2]), static_cast<Result>(data[3]), u32(data, 4),
             frame};
@@ -156,7 +157,7 @@ Information decode_information(const Frame& frame) {
     validate(frame, response_id, 64, true);
     const auto& data = frame.payload;
     if ((data[1] != 0x81 && data[1] != 0x82) || data[3] > 1 ||
-        (data[60] != 0 && data[60] != 20 && data[60] != 40) || data[61] > 3 || data[62] > 4)
+        (data[60] != 0 && data[60] != 20 && data[60] != 40) || data[61] > 4 || data[62] > 4)
         throw ProtocolError("invalid sysid INFO/STATUS fields");
     validate_node(data[2]);
     Information result;
@@ -226,7 +227,7 @@ std::array<uint8_t, 8> encode_request(uint8_t node, Operation operation, uint8_t
                                       uint32_t sequence) {
     validate_node(node);
     const uint8_t op = static_cast<uint8_t>(operation);
-    if (op < 1 || op > 5 || (operation == Operation::START ? argument > 1 : argument != 0))
+    if (op < 1 || op > 20 || (operation == Operation::START ? argument > 3 : argument != 0))
         throw std::invalid_argument("invalid sysid operation/argument");
     std::array<uint8_t, 8> data{1, node, op, argument, 0, 0, 0, 0};
     for (size_t i = 0; i < 4; ++i) data[4 + i] = static_cast<uint8_t>(sequence >> (8 * i));
@@ -270,6 +271,12 @@ void SystemIdentification::reset_timeline() {
     ++diagnostics_.timeline_resets;
     diagnostics_.session_discarded_samples += samples_.size();
     samples_.clear();
+    scan_records_.clear();
+    reliable_base_.clear();
+    reliable_scan_.clear();
+    reliable_next_ = reliable_acked_ = 0;
+    reliable_ = false;
+    scan_session_.reset();
     previous_sequence_.reset();
     session_.reset();
     start_fence_tick_.reset();
@@ -365,12 +372,47 @@ bool SystemIdentification::receive_one(int timeout_us) {
         const auto frame = transport_->receive(timeout_us);
         diagnostics_.socket_dropped = transport_->socket_dropped();
         if (!frame) return false;
-        if (frame->can_id == sample_id) {
-            accept_sample(decode_sample(*frame));
+        if (frame->can_id == 0x6F3) {
+            auto record = decode_scan_record(*frame);
+            if (record.node == node_ && reliable_) {
+                if ((!session_ && !pending_start_) ||
+                    (session_ && record.capture_session != *session_)) {
+                    ++diagnostics_.unassociated_samples;
+                } else if (record.sequence >= reliable_next_) {
+                    if (record.sequence - reliable_next_ >= 128U)
+                        throw ProtocolError("reliable scan window exceeded");
+                    reliable_scan_.emplace(record.sequence, std::move(record));
+                    release_reliable_pairs();
+                }
+            } else if (record.node == node_) {
+                if (scan_records_.size() == capacity_)
+                    ++diagnostics_.host_scan_dropped;
+                else
+                    scan_records_.push_back(std::move(record));
+            }
+        } else if (frame->can_id == sample_id) {
+            auto sample = decode_sample(*frame);
+            if (reliable_ && sample.node == node_) {
+                if (sample.sequence >= reliable_next_) {
+                    if (sample.sequence - reliable_next_ >= 128U)
+                        throw ProtocolError("reliable base window exceeded");
+                    if (start_fence_tick_ &&
+                        (uint32_t(sample.endpoint_tick - *start_fence_tick_) == 0 ||
+                         uint32_t(sample.endpoint_tick - *start_fence_tick_) > 0x7FFFFFFFU)) {
+                        ++diagnostics_.session_discarded_samples;
+                    } else {
+                        reliable_base_.emplace(sample.sequence, std::move(sample));
+                        release_reliable_pairs();
+                    }
+                }
+            } else
+                accept_sample(sample);
         } else if (frame->can_id == response_id) {
             Reply reply;
             if (frame->payload.size() == 8)
                 reply.ack = decode_ack(*frame);
+            else if (frame->payload.size() == 64 && frame->payload[1] == 0x83)
+                reply.scan = decode_scan_record(*frame);
             else
                 reply.information = decode_information(*frame);
             if (replies_.size() == capacity_)
@@ -400,6 +442,9 @@ Reply SystemIdentification::request(Operation operation, uint8_t argument, uint3
         const auto match = std::find_if(replies_.begin(), replies_.end(), [&](const Reply& reply) {
             if (reply.ack)
                 return reply.ack->operation == operation && reply.ack->request_sequence == sequence;
+            if (reply.scan)
+                return operation == Operation::SCAN_STATUS && reply.scan->node == node_ &&
+                       reply.scan->sequence == sequence;
             const auto& information = *reply.information;
             return information.node == node_ && information.request_sequence == sequence &&
                    information.message_type == (operation == Operation::INFO ? 0x81 : 0x82) &&
@@ -434,7 +479,7 @@ Reply SystemIdentification::status(int timeout_us) {
     return request(Operation::STATUS, 0, next_request_sequence(), timeout_us);
 }
 
-StartResult SystemIdentification::start(int rate_hz, int timeout_us) {
+StartResult SystemIdentification::start(int rate_hz, int timeout_us, bool reliable) {
     std::lock_guard<std::mutex> guard(mutex_);
     if (rate_hz != 500 && rate_hz != 1000)
         throw std::invalid_argument("sysid rate_hz must be 500 or 1000");
@@ -445,6 +490,8 @@ StartResult SystemIdentification::start(int rate_hz, int timeout_us) {
     // Consume existing kernel data with a strict bound while inactive, never flush while streaming.
     poll_locked(0, capacity_);
     reset_timeline();
+    reliable_ = reliable;
+    reliable_scan_required_ = staged_scan_;
     pending_samples_.clear();
     start_fence_tick_ = baseline.control_tick;
     period_ = rate_hz == 500 ? 40 : 20;
@@ -454,7 +501,8 @@ StartResult SystemIdentification::start(int rate_hz, int timeout_us) {
     result.session_id = sequence;
     try {
         try {
-            result.reply = request(Operation::START, rate_hz == 500 ? 0 : 1, sequence, timeout_us);
+            result.reply = request(Operation::START, (rate_hz == 500 ? 0 : 1) + (reliable ? 2 : 0),
+                                   sequence, timeout_us);
             result.accepted = result.reply.accepted();
         } catch (const TimeoutError&) {
             // Never retry START: sequence is a session tag, not a firmware deduplication key.
@@ -473,9 +521,11 @@ StartResult SystemIdentification::start(int rate_hz, int timeout_us) {
         pending_start_ = false;
         if (result.accepted) {
             session_ = sequence;
+            staged_scan_ = false;
             auto pending = std::move(pending_samples_);
             pending_samples_.clear();
             for (const auto& sample : pending) accept_sample(sample);
+            if (reliable_) release_reliable_pairs();
         } else {
             diagnostics_.session_discarded_samples += pending_samples_.size();
             pending_samples_.clear();
@@ -489,6 +539,47 @@ StartResult SystemIdentification::start(int rate_hz, int timeout_us) {
         reset_timeline();
         throw;
     }
+}
+
+void SystemIdentification::release_reliable_pairs() {
+    if (!session_ || pending_start_) return;
+    while (true) {
+        auto base = reliable_base_.find(reliable_next_);
+        auto scan = reliable_scan_.find(reliable_next_);
+        if (base == reliable_base_.end() ||
+            (reliable_scan_required_ && scan == reliable_scan_.end()))
+            break;
+        if (base->second.interval_ticks != period_ ||
+            (reliable_scan_required_ && (scan->second.capture_session != *session_ ||
+                                         base->second.endpoint_tick != scan->second.endpoint_tick)))
+            throw ProtocolError("reliable sample pair/session mismatch");
+        if (samples_.size() >= capacity_ ||
+            (reliable_scan_required_ && scan_records_.size() >= capacity_))
+            break;
+        accept_sample(base->second);
+        if (reliable_scan_required_) {
+            scan_records_.push_back(std::move(scan->second));
+            reliable_scan_.erase(scan);
+        }
+        reliable_base_.erase(base);
+        ++reliable_next_;
+    }
+}
+
+Reply SystemIdentification::acknowledge_data(uint32_t next_sequence, int timeout_us) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!session_ || !reliable_ || next_sequence > reliable_next_ ||
+        next_sequence < reliable_acked_)
+        throw SessionError("invalid reliable data acknowledgement");
+    auto reply = request(Operation::DATA_ACK, 0, *session_ ^ next_sequence, timeout_us);
+    if (reply.accepted()) reliable_acked_ = next_sequence;
+    return reply;
+}
+Reply SystemIdentification::replay_data(uint32_t next_sequence, int timeout_us) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!session_ || !reliable_ || next_sequence != reliable_next_)
+        throw SessionError("replay must start at the first incomplete pair");
+    return request(Operation::DATA_REPLAY, 0, *session_ ^ next_sequence, timeout_us);
 }
 
 Reply SystemIdentification::heartbeat(int timeout_us) {
@@ -559,6 +650,7 @@ std::vector<Measurement> SystemIdentification::take_samples() {
 std::vector<Measurement> SystemIdentification::read_samples(int timeout_us, size_t max_frames) {
     std::lock_guard<std::mutex> guard(mutex_);
     poll_locked(timeout_us, max_frames);
+    release_reliable_pairs();
     return take_samples();
 }
 
@@ -586,6 +678,110 @@ Diagnostics SystemIdentification::diagnostics() const {
 std::optional<uint32_t> SystemIdentification::owned_session() const {
     std::lock_guard<std::mutex> guard(mutex_);
     return session_;
+}
+
+ScanRecord decode_scan_record(const Frame& frame) {
+    validate(frame, frame.can_id == 0x6F3 ? 0x6F3 : response_id, 64, true);
+    const auto& d = frame.payload;
+    if (d[1] != (frame.can_id == 0x6F3 ? 0x91 : 0x83) || d[3] > 8 || d[56] > 9 || d[57] > 1 ||
+        d[58] > 1)
+        throw ProtocolError("invalid scan record");
+    validate_node(d[2]);
+    ScanRecord r;
+    r.node = d[2];
+    r.phase = d[3];
+    r.sequence = u32(d, 4);
+    r.endpoint_tick = u32(d, 8);
+    r.capture_session = u32(d, 12);
+    r.scan_session = u32(d, 16);
+    r.completed_legs = uint16_t(d[20]) | uint16_t(d[21]) << 8;
+    r.planned_position = f32(d, 24);
+    r.command_velocity = f32(d, 28);
+    r.raw_torque = f32(d, 32);
+    r.position = f32(d, 36);
+    r.home = f32(d, 40);
+    r.target = f32(d, 44);
+    r.start_tick = u32(d, 48);
+    r.end_tick = u32(d, 52);
+    r.reason = d[56];
+    r.owned = d[57];
+    r.active = d[58];
+    r.raw = frame;
+    return r;
+}
+void SystemIdentification::configure_scan(const ScanConfig& c, int timeout_us) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    const auto baseline =
+        require_information(request(Operation::STATUS, 0, next_request_sequence(), timeout_us));
+    if (baseline.active) throw SessionError("configure scan before starting capture");
+    staged_scan_ = false;
+    const float values[] = {c.lower,
+                            c.upper,
+                            c.home,
+                            c.speed,
+                            c.acceleration,
+                            c.torque_limit,
+                            c.temperature_limit,
+                            c.repeats,
+                            c.tracking_error,
+                            c.max_seconds};
+    for (float value : values)
+        if (!std::isfinite(value)) throw std::invalid_argument("nonfinite scan config");
+    if (node_ > 7 || c.lower >= c.upper || c.speed <= 0 || c.acceleration <= 0 ||
+        c.torque_limit <= 0 || c.temperature_limit <= 0 || c.repeats < 1 || c.repeats > 100 ||
+        std::floor(c.repeats) != c.repeats || c.tracking_error <= 0 || c.max_seconds <= 0 ||
+        c.max_seconds > 3600)
+        throw std::invalid_argument("invalid scan limits");
+    const float margin =
+        c.tracking_error + c.speed * .002f + c.speed * c.speed / (2 * c.acceleration);
+    if (c.lower + margin > c.home || c.upper - margin < c.home || 2 * margin >= c.upper - c.lower)
+        throw std::invalid_argument("scan home/span lacks braking margin");
+    // Dedicated operation per field: float bits are echoed in ACK; writes are idempotent.
+    for (uint8_t i = 0; i < 10; ++i) {
+        uint32_t bits;
+        std::memcpy(&bits, &values[i], 4);
+        if (!request(static_cast<Operation>(6 + i), 0, bits, timeout_us).accepted())
+            throw SessionError("scan configuration rejected");
+    }
+    staged_scan_ = true;
+}
+Reply SystemIdentification::start_scan(int timeout_us) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!session_) throw SessionError("scan requires owned telemetry capture");
+    auto before = request(Operation::SCAN_STATUS, 0, next_request_sequence(), timeout_us);
+    if (!before.scan || before.scan->active || before.scan->capture_session != *session_)
+        throw SessionError("scan active/unsupported/capture mismatch");
+    const uint32_t id = next_request_sequence();
+    Reply result;
+    try {
+        result = request(Operation::SCAN_START, 0, id, timeout_us);
+    } catch (const TimeoutError&) {
+        result = request(Operation::SCAN_STATUS, 0, next_request_sequence(), timeout_us);
+        if (!result.scan || result.scan->scan_session != id ||
+            result.scan->capture_session != *session_)
+            throw SessionError("ambiguous scan START; no retry or foreign abort");
+    }
+    if (result.accepted()) scan_session_ = id;
+    return result;
+}
+Reply SystemIdentification::scan_status(int timeout_us) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    return request(Operation::SCAN_STATUS, 0, next_request_sequence(), timeout_us);
+}
+Reply SystemIdentification::abort_scan(int timeout_us) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!scan_session_) throw SessionError("no owned scan; no abort sent");
+    auto status = request(Operation::SCAN_STATUS, 0, next_request_sequence(), timeout_us);
+    if (!status.scan || status.scan->scan_session != *scan_session_ || !session_ ||
+        status.scan->capture_session != *session_)
+        throw SessionError("scan ownership changed; no abort sent");
+    return request(Operation::SCAN_ABORT, 0, next_request_sequence(), timeout_us);
+}
+std::vector<ScanRecord> SystemIdentification::take_scan_records() {
+    std::lock_guard<std::mutex> guard(mutex_);
+    std::vector<ScanRecord> result(scan_records_.begin(), scan_records_.end());
+    scan_records_.clear();
+    return result;
 }
 
 void SystemIdentification::close() {

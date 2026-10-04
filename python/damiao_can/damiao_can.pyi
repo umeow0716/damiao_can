@@ -5,68 +5,97 @@ from __future__ import annotations
 import collections.abc
 import enum
 import typing
-__all__: list[str] = ['ACC', 'MotorComponent', 'CANDevice', 'CANDeviceCollection', 'CANPacket', 'CANSocket', 'CANSocketException', 'COUNT', 'UNKNOWN', 'CTRL_MODE', 'CallbackMode', 'CanFdFrame', 'CanFrame', 'CanPacketDecoder', 'CanPacketEncoder', 'ControlMode', 'DEC', 'DM10010', 'DM10010L', 'DM3507', 'DM4310', 'DM4310_48V', 'DM4340', 'DM4340_48V', 'DM6006', 'DM8006', 'DM8009', 'DMDeviceCollection', 'DMG6220', 'DMH3510', 'DMH6215', 'Damp', 'Deta', 'ESC_ID', 'Flux', 'GREF', 'Gr', 'IGNORE', 'IQ_c1', 'I_BW', 'Inertia', 'KI_APR', 'KI_ASR', 'KP_APR', 'KP_ASR', 'KT_Value', 'LS', 'LimitParam', 'MAX_SPD', 'MIT', 'MITParam', 'MST_ID', 'Motor', 'MotorDeviceCan', 'MotorStateResult', 'MotorType', 'MotorIdentityConfidence', 'MotorIdentityRegisters', 'MotorIdentityResult', 'MotorVariable', 'NPP', 'OC_Value', 'OT_Value', 'OV_Value', 'DamiaoCAN', 'DamiaoCANGroup', 'DamiaoCANGroupRecvResult', 'DamiaoCANRecvResult', 'PARAM', 'PMAX', 'POS_FORCE', 'POS_VEL', 'ParamResult', 'PosForceParam', 'PosVelParam', 'VelParam', 'Rs', 'SN', 'STATE', 'TIMEOUT', 'TMAX', 'UV_Value', 'VEL', 'VL_c1', 'VMAX', 'V_BW', 'can_br', 'dir', 'hw_ver', 'k1', 'k2', 'm_off', 'p_m', 'sub_ver', 'sw_ver', 'u_off', 'v_off', 'xout']
+__all__: list[str] = ['ACC', 'MotorComponent', 'CANDevice', 'CANDeviceCollection', 'CANPacket', 'CANSocket', 'CANSocketException', 'COUNT', 'UNKNOWN', 'CTRL_MODE', 'CallbackMode', 'CanFdFrame', 'CanFrame', 'CanPacketDecoder', 'CanPacketEncoder', 'ControlMode', 'DEC', 'DM10010', 'DM10010L', 'DM3507', 'DM4310', 'DM4310_48V', 'DM4340', 'DM4340_48V', 'DM6006', 'DM8006', 'DM8009', 'DMDeviceCollection', 'DMG6220', 'DMH3510', 'DMH6215', 'Damp', 'Deta', 'ESC_ID', 'Flux', 'GREF', 'Gr', 'IGNORE', 'IQ_c1', 'I_BW', 'Inertia', 'KI_APR', 'KI_ASR', 'KP_APR', 'KP_ASR', 'KT_Value', 'LS', 'LimitParam', 'MAX_SPD',
+                      'MIT', 'MITParam', 'MST_ID', 'Motor', 'MotorDeviceCan', 'MotorStateResult', 'MotorType', 'MotorIdentityConfidence', 'MotorIdentityRegisters', 'MotorIdentityResult', 'MotorVariable', 'NPP', 'OC_Value', 'OT_Value', 'OV_Value', 'DamiaoCAN', 'DamiaoCANGroup', 'DamiaoCANGroupRecvResult', 'DamiaoCANRecvResult', 'PARAM', 'PMAX', 'POS_FORCE', 'POS_VEL', 'ParamResult', 'PosForceParam', 'PosVelParam', 'VelParam', 'Rs', 'SN', 'STATE', 'TIMEOUT', 'TMAX', 'UV_Value', 'VEL', 'VL_c1', 'VMAX', 'V_BW', 'can_br', 'dir', 'hw_ver', 'k1', 'k2', 'm_off', 'p_m', 'sub_ver', 'sw_ver', 'u_off', 'v_off', 'xout']
+
+
 class MotorComponent(DMDeviceCollection):
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
+
     def __init__(self, can_socket: CANSocket) -> None:
         ...
+
     def init_motor_devices(self, motor_types: collections.abc.Sequence[MotorType], send_can_ids: collections.abc.Sequence[int], recv_can_ids: collections.abc.Sequence[int], use_fd: bool, control_modes: collections.abc.Sequence[ControlMode] = ..., offset: collections.abc.Sequence[float | None] | None = ..., reversed: collections.abc.Sequence[bool | None] | None = ...) -> None:
         ...
+
+
 class CANDevice:
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
+
     def get_recv_can_id(self) -> int:
         ...
+
     def get_recv_can_mask(self) -> int:
         ...
+
     def get_send_can_id(self) -> int:
         ...
+
     def is_fd_enabled(self) -> bool:
         ...
+
+
 class CANDeviceCollection:
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
+
     def __init__(self, can_socket: CANSocket) -> None:
         ...
+
     def add_device(self, device: CANDevice) -> None:
         ...
+
     @typing.overload
     def dispatch_frame_callback(self, frame: CanFrame) -> None:
         ...
+
     @typing.overload
     def dispatch_frame_callback(self, frame: CanFdFrame) -> None:
         ...
+
     def get_devices(self) -> collections.abc.Mapping[int, CANDevice]:
         ...
+
     def remove_device(self, device: CANDevice) -> None:
         ...
+
+
 class CANPacket:
     send_can_id: int
+
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
+
     def __init__(self) -> None:
         ...
+
     @property
     def data(self) -> list[int]:
         ...
+
     @data.setter
     def data(self, arg: collections.abc.Sequence[int]) -> None:
         ...
+
+
 class CANHelperException(RuntimeError):
     pass
+
+
 class CANInterfaceStatus:
     exists: bool
     is_can: bool
@@ -79,6 +108,8 @@ class CANInterfaceStatus:
     fd_enabled: bool
     restart_ms: int | None
     def __init__(self) -> None: ...
+
+
 class CANInterfaceConfig:
     bitrate: int
     dbitrate: int
@@ -89,6 +120,8 @@ class CANInterfaceConfig:
     restart_ms: int | None
     bring_up: bool
     def __init__(self) -> None: ...
+
+
 class CANHelper:
     def __init__(self, interface: str) -> None: ...
     @property
@@ -100,63 +133,90 @@ class CANHelper:
     def set_down(self) -> None: ...
     def set_bitrate(self, bitrate: int, dbitrate: int, fd: bool) -> None: ...
     def configure(self, config: CANInterfaceConfig) -> None: ...
+
+
 class CANSocket:
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
+
     def __init__(self, interface: str, enable_fd: bool = False) -> None:
         ...
+
     def get_interface(self) -> str:
         ...
+
     def get_socket_fd(self) -> int:
         ...
+
     def is_canfd_enabled(self) -> bool:
         ...
+
     def is_initialized(self) -> bool:
         ...
+
     def read_can_frame(self, frame: CanFrame) -> bool:
         ...
+
     def read_canfd_frame(self, frame: CanFdFrame) -> bool:
         ...
+
     def read_raw_frame(self, buffer_size: int) -> bytes:
         ...
+
     def write_can_frame(self, frame: CanFrame) -> bool:
         ...
+
     def write_canfd_frame(self, frame: CanFdFrame) -> bool:
         ...
+
     def write_raw_frame(self, data: bytes) -> int:
         ...
+
+
 class CANSocketException(RuntimeError):
     pass
+
+
 class CallbackMode(enum.Enum):
     IGNORE = ...
     PARAM = ...
     STATE = ...
+
+
 class CanFdFrame:
     can_id: int
     data: bytes
     flags: int
     len: int
+
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
+
     def __init__(self) -> None:
         ...
+
+
 class CanFrame:
     can_dlc: int
     can_id: int
     data: bytes
+
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
+
     def __init__(self) -> None:
         ...
+
+
 class CanPacketDecoder:
     @staticmethod
     def __new__(type, *args, **kwargs):
@@ -176,6 +236,8 @@ class CanPacketDecoder:
         data: collections.abc.Sequence[int],
     ) -> ParamResult:
         ...
+
+
 class CanPacketEncoder:
     @staticmethod
     def __new__(type, *args, **kwargs):
@@ -218,59 +280,85 @@ class CanPacketEncoder:
     @staticmethod
     def create_query_param_command(motor: Motor, rid: int) -> CANPacket:
         ...
+
+
 class ControlMode(enum.Enum):
     MIT = ...
     POS_FORCE = ...
     POS_VEL = ...
     VEL = ...
+
+
 class DMDeviceCollection:
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
+
     def __init__(self, can_socket: CANSocket) -> None:
         ...
+
     def disable_all(self) -> None:
         ...
+
     def enable_all(self) -> None:
         ...
+
     def get_device_collection(self) -> CANDeviceCollection:
         ...
+
     def get_motors(self) -> list[Motor]:
         ...
+
     def mit_control_all(self, mit_params: collections.abc.Sequence[MITParam]) -> None:
         ...
+
     def mit_control_one(self, index: int, mit_param: MITParam) -> None:
         ...
+
     def posforce_control_all(self, posforce_params: collections.abc.Sequence[PosForceParam]) -> None:
         ...
+
     def posforce_control_one(self, index: int, posforce_param: PosForceParam) -> None:
         ...
+
     def posvel_control_all(self, posvel_params: collections.abc.Sequence[PosVelParam]) -> None:
         ...
+
     def posvel_control_one(self, index: int, posvel_param: PosVelParam) -> None:
         ...
+
     def vel_control_one(self, index: int, vel_param: VelParam) -> None:
         ...
+
     def vel_control_all(self, vel_params: collections.abc.Sequence[VelParam]) -> None:
         ...
+
     def query_param_all(self, rid: int) -> None:
         ...
+
     def refresh_all(self) -> None:
         ...
+
     def set_callback_mode_all(self, callback_mode: CallbackMode) -> None:
         ...
+
     def set_control_mode_all(self, mode: ControlMode) -> None:
         ...
+
     def set_control_mode_one(self, index: int, mode: ControlMode) -> None:
         ...
+
     def set_zero_all(self) -> None:
         ...
+
+
 class LimitParam:
     pMax: float
     tMax: float
     vMax: float
+
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
@@ -280,6 +368,8 @@ class LimitParam:
     def __init__(self) -> None: ...
     @typing.overload
     def __init__(self, pMax: float, vMax: float, tMax: float) -> None: ...
+
+
 class MITParam:
     dq: float
     kd: float
@@ -300,6 +390,8 @@ class MITParam:
     @typing.overload
     def __init__(self, kp: float, kd: float, q: float, dq: float, tau: float) -> None:
         ...
+
+
 class Motor:
     @staticmethod
     def __new__(type, *args, **kwargs):
@@ -309,60 +401,89 @@ class Motor:
     @staticmethod
     def get_limit_param(motor_type: MotorType) -> LimitParam:
         ...
+
     @typing.overload
-    def __init__(self, motor_type: MotorType, send_can_id: int, recv_can_id: int, offset: float = 0.0, reversed: bool = False) -> None: ...
+    def __init__(self, motor_type: MotorType, send_can_id: int, recv_can_id: int,
+                 offset: float = 0.0, reversed: bool = False) -> None: ...
+
     @typing.overload
-    def __init__(self, limits: LimitParam, send_can_id: int, recv_can_id: int, motor_type: MotorType = ..., offset: float = 0.0, reversed: bool = False) -> None: ...
+    def __init__(self, limits: LimitParam, send_can_id: int, recv_can_id: int,
+                 motor_type: MotorType = ..., offset: float = 0.0, reversed: bool = False) -> None: ...
+
     def get_motor_type(self) -> MotorType:
         ...
+
     def get_offset(self) -> float:
         ...
+
     def is_reversed(self) -> bool:
         ...
+
     def get_limits(self) -> LimitParam:
         ...
+
     def set_limits(self, limits: LimitParam) -> None:
         ...
+
     def get_param(self, rid: int) -> float:
         ...
+
     def get_position(self) -> float:
         ...
+
     def get_recv_can_id(self) -> int:
         ...
+
     def get_send_can_id(self) -> int:
         ...
+
     def get_state_tmos(self) -> int:
         ...
+
     def get_state_trotor(self) -> int:
         ...
+
     def get_torque(self) -> float:
         ...
+
     def get_velocity(self) -> float:
         ...
+
     def is_enabled(self) -> bool:
         ...
+
+
 class MotorDeviceCan(CANDevice):
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
+
     def __init__(self, motor: Motor, recv_can_mask: int, use_fd: bool) -> None:
         ...
+
     @typing.overload
     def callback(self, frame: CanFrame) -> None:
         ...
+
     @typing.overload
     def callback(self, frame: CanFdFrame) -> None:
         ...
+
     def create_can_frame(self, send_can_id: int, data: collections.abc.Sequence[int]) -> CanFrame:
         ...
+
     def create_canfd_frame(self, send_can_id: int, data: collections.abc.Sequence[int]) -> CanFdFrame:
         ...
+
     def get_motor(self) -> Motor:
         ...
+
     def set_callback_mode(self, callback_mode: CallbackMode) -> None:
         ...
+
+
 class MotorStateResult:
     position: float
     t_mos: int
@@ -370,13 +491,17 @@ class MotorStateResult:
     torque: float
     valid: bool
     velocity: float
+
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
+
     def __init__(self) -> None:
         ...
+
+
 class MotorType(enum.Enum):
     COUNT = ...
     UNKNOWN = ...
@@ -393,10 +518,14 @@ class MotorType(enum.Enum):
     DMG6220 = ...
     DMH3510 = ...
     DMH6215 = ...
+
+
 class MotorIdentityConfidence(enum.Enum):
     UNKNOWN = ...
     PROBABLE = ...
     EXACT = ...
+
+
 class MotorIdentityRegisters:
     hw_ver: int | None
     sw_ver: int | None
@@ -411,6 +540,8 @@ class MotorIdentityRegisters:
     vmax: float | None
     tmax: float | None
     def __init__(self) -> None: ...
+
+
 class MotorIdentityResult:
     send_can_id: int
     responded: bool
@@ -425,6 +556,8 @@ class MotorIdentityResult:
     serial_ascii: str
     registers: MotorIdentityRegisters
     def __init__(self) -> None: ...
+
+
 class MotorVariable(enum.Enum):
     ACC = ...
     COUNT = ...
@@ -472,83 +605,120 @@ class MotorVariable(enum.Enum):
     u_off = ...
     v_off = ...
     xout = ...
+
+
 class DamiaoCAN:
     @staticmethod
     def __new__(type, *args, **kwargs):
         """Create and return a new object."""
+
     def __init__(self, can_interface: str, enable_fd: bool = False) -> None:
         ...
+
     def disable_all(self) -> None:
         ...
+
     def enable_all(self) -> None:
         ...
+
     def expected_response_count(self) -> int:
         ...
+
     def flush_rx(self) -> int:
         ...
+
     def get_master_can_device_collection(self) -> CANDeviceCollection:
         ...
+
     def get_motor(self, index: int) -> Motor:
         ...
+
     def get_motors(self) -> list[Motor]:
         ...
+
     def init_motors(self, send_ids: collections.abc.Sequence[int], recv_ids: collections.abc.Sequence[int], motor_types: collections.abc.Sequence[MotorType | None] | None = ..., control_modes: collections.abc.Sequence[ControlMode] | None = ..., offset: collections.abc.Sequence[float | None] | None = ..., reversed: collections.abc.Sequence[bool | None] | None = ...) -> None:
         """Initialize motors; omitted/None motor types use register-based AUTO limits."""
         ...
+
     def init_motors_with_limits(self, limit_params: collections.abc.Sequence[LimitParam], send_can_ids: collections.abc.Sequence[int], recv_can_ids: collections.abc.Sequence[int], control_modes: collections.abc.Sequence[ControlMode] = ..., offset: collections.abc.Sequence[float | None] | None = ..., reversed: collections.abc.Sequence[bool | None] | None = ...) -> None:
         ...
+
     def set_motor_limits_one(self, index: int, limits: LimitParam) -> None:
         ...
+
     def mit_control_all(self, mit_params: collections.abc.Sequence[MITParam]) -> None:
         ...
+
     def mit_control_one(self, index: int, mit_param: MITParam) -> None:
         ...
+
     def posforce_control_all(self, posforce_params: collections.abc.Sequence[PosForceParam]) -> None:
         ...
+
     def posforce_control_one(self, index: int, posforce_param: PosForceParam) -> None:
         ...
+
     def posvel_control_all(self, posvel_params: collections.abc.Sequence[PosVelParam]) -> None:
         ...
+
     def posvel_control_one(self, index: int, posvel_param: PosVelParam) -> None:
         ...
+
     def query_param_all(self, rid: int) -> None:
         ...
+
     def query_param_one(self, index: int, rid: int) -> None:
         ...
+
     def probe_motor_identity(self, send_can_id: int, timeout_us: int = 100000) -> MotorIdentityResult:
         ...
+
     def recv_all(self, timeout_us: int = 500) -> DamiaoCANRecvResult:
         ...
+
     def refresh_all(self) -> None:
         ...
+
     def refresh_one(self, index: int) -> None:
         ...
+
     def set_callback_mode_all(self, callback_mode: CallbackMode) -> None:
         ...
+
     def set_control_mode_all(self, mode: ControlMode) -> None:
         ...
+
     def set_control_mode_one(self, index: int, mode: ControlMode) -> None:
         ...
+
     def set_zero(self, index: int) -> None:
         ...
+
     def set_zero_all(self) -> None:
         ...
+
     def vel_control_all(self, vel_params: collections.abc.Sequence[VelParam]) -> None:
         ...
+
     def vel_control_one(self, index: int, vel_param: VelParam) -> None:
         ...
+
 
 class ParamResult:
     rid: int
     valid: bool
     value: float
+
     @staticmethod
     def __new__(type, *args, **kwargs):
         """
         Create and return a new object.  See help(type) for accurate signature.
         """
+
     def __init__(self) -> None:
         ...
+
+
 class PosForceParam:
     dq: float
     i: float
@@ -567,6 +737,8 @@ class PosForceParam:
     @typing.overload
     def __init__(self, q: float, dq: float, i: float) -> None:
         ...
+
+
 class PosVelParam:
     dq: float
     q: float
@@ -584,6 +756,8 @@ class PosVelParam:
     @typing.overload
     def __init__(self, q: float, dq: float) -> None:
         ...
+
+
 class VelParam:
     dq: float
 
@@ -600,6 +774,8 @@ class VelParam:
     @typing.overload
     def __init__(self, dq: float) -> None:
         ...
+
+
 class DamiaoCANRecvResult:
     can_interface: str
     expect: int
@@ -612,6 +788,7 @@ class DamiaoCANRecvResult:
 
     def __repr__(self) -> str:
         ...
+
 
 class DamiaoCANGroupRecvResult:
     @property
@@ -629,6 +806,7 @@ class DamiaoCANGroupRecvResult:
 
     def __repr__(self) -> str:
         ...
+
 
 class DamiaoCANGroup:
     @staticmethod
@@ -668,6 +846,7 @@ class DamiaoCANGroup:
 
     def recv_all(self, timeout_us: int = 500) -> DamiaoCANGroupRecvResult:
         ...
+
 
 ACC: MotorVariable  # value = MotorVariable.ACC
 COUNT: MotorVariable  # value = MotorVariable.COUNT
@@ -736,6 +915,7 @@ u_off: MotorVariable  # value = MotorVariable.u_off
 v_off: MotorVariable  # value = MotorVariable.v_off
 xout: MotorVariable  # value = MotorVariable.xout
 
+
 class MotorLimitResolutionError(RuntimeError):
     ...
 
@@ -747,6 +927,23 @@ class SysIdOperation(enum.Enum):
     HEARTBEAT = ...
     INFO = ...
     STATUS = ...
+    SCAN_LOWER = ...
+    SCAN_UPPER = ...
+    SCAN_HOME = ...
+    SCAN_SPEED = ...
+    SCAN_ACCEL = ...
+    SCAN_TORQUE = ...
+    SCAN_TEMPERATURE = ...
+    SCAN_REPEATS = ...
+    SCAN_ERROR = ...
+    SCAN_SECONDS = ...
+    SCAN_START = ...
+    SCAN_STATUS = ...
+    SCAN_ABORT = ...
+
+    DATA_ACK = 19
+    DATA_REPLAY = 20
+
 
 class SysIdResult(enum.Enum):
     ACCEPTED = ...
@@ -757,14 +954,18 @@ class SysIdResult(enum.Enum):
     UNSUPPORTED_OPERATION = ...
     MEASUREMENTS_NOT_READY = ...
 
+
 class SysIdProtocolError(RuntimeError):
     ...
+
 
 class SysIdTimeoutError(RuntimeError):
     ...
 
+
 class SysIdSessionError(RuntimeError):
     ...
+
 
 class SysIdFrame:
     def __init__(self) -> None: ...
@@ -774,12 +975,14 @@ class SysIdFrame:
     payload: bytes
     host_receive_time_ns: int
 
+
 class SysIdAck:
     version: int
     operation: SysIdOperation
     result: SysIdResult
     request_sequence: int
     raw: SysIdFrame
+
 
 class SysIdInformation:
     version: int
@@ -805,6 +1008,7 @@ class SysIdInformation:
     mode: int
     fault: int
     raw: SysIdFrame
+
 
 class SysIdSample:
     version: int
@@ -839,6 +1043,7 @@ class SysIdSample:
     @property
     def command_unknown(self) -> bool: ...
 
+
 class SysIdMeasurement:
     sample: SysIdSample
     session_id: int
@@ -853,11 +1058,14 @@ class SysIdMeasurement:
     mit_feedforward_torque: float
     instantaneous_iq: float
 
+
 class SysIdReply:
+    scan: SysIdScanRecord | None
     ack: SysIdAck | None
     information: SysIdInformation | None
     @property
     def accepted(self) -> bool: ...
+
 
 class SysIdStartResult:
     reply: SysIdReply
@@ -866,7 +1074,9 @@ class SysIdStartResult:
     recovered: bool
     accepted: bool
 
+
 class SysIdDiagnostics:
+    host_scan_dropped: int
     host_sample_dropped: int
     host_reply_dropped: int
     host_other_dropped: int
@@ -877,32 +1087,99 @@ class SysIdDiagnostics:
     sequence_gaps: int
     timeline_resets: int
 
+
 class SysIdStopResult:
     reply: SysIdReply
     samples: list[SysIdMeasurement]
     final_status: SysIdInformation
     drain_limit_reached: bool
 
+
 class SystemIdentification:
-    def __init__(self, interface: str, node: int, offset: float = 0.0, reversed: bool = False, queue_capacity: int = 2048) -> None: ...
+    def __init__(self, interface: str, node: int, offset: float = 0.0,
+                 reversed: bool = False, queue_capacity: int = 2048) -> None: ...
+
     def info(self, timeout_us: int = 100000) -> SysIdReply: ...
     def status(self, timeout_us: int = 100000) -> SysIdReply: ...
-    def start(self, rate_hz: int = 500, timeout_us: int = 100000) -> SysIdStartResult: ...
+
+    def start(self, rate_hz: int = 500, timeout_us: int = 100000,
+              reliable: bool = False) -> SysIdStartResult: ...
+
+    def acknowledge_data(self, next_sequence: int,
+                         timeout_us: int = 20000) -> SysIdReply: ...
+    def replay_data(self, next_sequence: int,
+                    timeout_us: int = 20000) -> SysIdReply: ...
+
     def heartbeat(self, timeout_us: int = 100000) -> SysIdReply: ...
-    def stop(self, timeout_us: int = 100000, drain_timeout_us: int = 50000, max_drain_frames: int = 4096) -> SysIdStopResult: ...
+    def stop(self, timeout_us: int = 100000, drain_timeout_us: int = 50000,
+             max_drain_frames: int = 4096) -> SysIdStopResult: ...
+
     def poll(self, timeout_us: int = 0, max_frames: int = 256) -> int: ...
-    def read_samples(self, timeout_us: int = 0, max_frames: int = 256) -> list[SysIdMeasurement]: ...
+    def read_samples(self, timeout_us: int = 0,
+                     max_frames: int = 256) -> list[SysIdMeasurement]: ...
+
     def take_replies(self) -> list[SysIdReply]: ...
     def take_other_frames(self) -> list[SysIdFrame]: ...
     def diagnostics(self) -> SysIdDiagnostics: ...
     @property
     def owned_session(self) -> int | None: ...
+    def configure_scan(self, config: SysIdScanConfig,
+                       timeout_us: int = 100000) -> None: ...
+
+    def start_scan(self, timeout_us: int = 100000) -> SysIdReply: ...
+    def scan_status(self, timeout_us: int = 100000) -> SysIdReply: ...
+    def abort_scan(self, timeout_us: int = 100000) -> SysIdReply: ...
+    def take_scan_records(self) -> list[SysIdScanRecord]: ...
     def close(self) -> None: ...
     def __enter__(self) -> SystemIdentification: ...
-    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None: ...
+    def __exit__(self, exc_type: object, exc_value: object,
+                 traceback: object) -> None: ...
+
 
 def decode_sysid_ack(frame: SysIdFrame) -> SysIdAck: ...
 def decode_sysid_information(frame: SysIdFrame) -> SysIdInformation: ...
 def decode_sysid_sample(frame: SysIdFrame) -> SysIdSample: ...
-def encode_sysid_request(node: int, operation: SysIdOperation, argument: int, request_sequence: int) -> bytes: ...
+def encode_sysid_request(node: int, operation: SysIdOperation,
+                         argument: int, request_sequence: int) -> bytes: ...
+
+
 def sysid_command_sequence_distance(previous: int, current: int) -> int: ...
+
+
+class SysIdScanConfig:
+    def __init__(self) -> None: ...
+    lower: float
+    upper: float
+    home: float
+    speed: float
+    acceleration: float
+    torque_limit: float
+    temperature_limit: float
+    repeats: float
+    tracking_error: float
+    max_seconds: float
+
+
+class SysIdScanRecord:
+    node: int
+    phase: int
+    reason: int
+    sequence: int
+    endpoint_tick: int
+    capture_session: int
+    scan_session: int
+    completed_legs: int
+    start_tick: int
+    end_tick: int
+    planned_position: float
+    command_velocity: float
+    raw_torque: float
+    position: float
+    home: float
+    target: float
+    owned: bool
+    active: bool
+    raw: SysIdFrame
+
+
+def decode_sysid_scan_record(frame: SysIdFrame) -> SysIdScanRecord: ...

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <damiao_can/canbus/can_socket.hpp>
 #include <deque>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -18,7 +19,28 @@ constexpr uint32_t response_id = 0x6F1;
 constexpr uint32_t sample_id = 0x6F2;
 constexpr double tick_seconds = 0.00005;  // Nominal firmware control count, not wall time.
 
-enum class Operation : uint8_t { START = 1, STOP = 2, HEARTBEAT = 3, INFO = 4, STATUS = 5 };
+enum class Operation : uint8_t {
+    START = 1,
+    STOP = 2,
+    HEARTBEAT = 3,
+    INFO = 4,
+    STATUS = 5,
+    SCAN_LOWER = 6,
+    SCAN_UPPER,
+    SCAN_HOME,
+    SCAN_SPEED,
+    SCAN_ACCEL,
+    SCAN_TORQUE,
+    SCAN_TEMPERATURE,
+    SCAN_REPEATS,
+    SCAN_ERROR,
+    SCAN_SECONDS,
+    SCAN_START,
+    SCAN_STATUS,
+    SCAN_ABORT,
+    DATA_ACK,
+    DATA_REPLAY
+};
 enum class Result : uint8_t {
     ACCEPTED = 0,
     BAD_VERSION = 1,
@@ -131,10 +153,30 @@ struct Measurement {
     double instantaneous_iq = 0;
 };
 
+struct ScanConfig {
+    float lower = 0, upper = 0, home = 0, speed = 0.1f, acceleration = 0.2f;
+    float torque_limit = 1, temperature_limit = 70, repeats = 2, tracking_error = 0.02f,
+          max_seconds = 120;
+};
+struct ScanRecord {
+    uint8_t node = 0, phase = 0, reason = 0;
+    bool owned = false, active = false;
+    uint32_t sequence = 0, endpoint_tick = 0, capture_session = 0, scan_session = 0;
+    uint16_t completed_legs = 0;
+    float planned_position = 0, command_velocity = 0, raw_torque = 0, position = 0, home = 0,
+          target = 0;
+    uint32_t start_tick = 0, end_tick = 0;
+    Frame raw;
+};
+ScanRecord decode_scan_record(const Frame& frame);
+
 struct Reply {
     std::optional<Ack> ack;
     std::optional<Information> information;
-    bool accepted() const { return information || (ack && ack->result == Result::ACCEPTED); }
+    std::optional<ScanRecord> scan;
+    bool accepted() const {
+        return scan || information || (ack && ack->result == Result::ACCEPTED);
+    }
 };
 
 struct StartResult {
@@ -146,6 +188,7 @@ struct StartResult {
 };
 
 struct Diagnostics {
+    uint64_t host_scan_dropped = 0;
     uint64_t host_sample_dropped = 0;
     uint64_t host_reply_dropped = 0;
     uint64_t host_other_dropped = 0;
@@ -193,7 +236,9 @@ public:
 
     Reply info(int timeout_us = 100000);
     Reply status(int timeout_us = 100000);
-    StartResult start(int rate_hz = 500, int timeout_us = 100000);
+    StartResult start(int rate_hz = 500, int timeout_us = 100000, bool reliable = false);
+    Reply acknowledge_data(uint32_t next_sequence, int timeout_us = 20000);
+    Reply replay_data(uint32_t next_sequence, int timeout_us = 20000);
     Reply heartbeat(int timeout_us = 100000);
     StopResult stop(int timeout_us = 100000, int drain_timeout_us = 50000,
                     size_t max_drain_frames = 4096);
@@ -203,6 +248,11 @@ public:
     std::vector<Frame> take_other_frames();
     Diagnostics diagnostics() const;
     std::optional<uint32_t> owned_session() const;
+    void configure_scan(const ScanConfig& config, int timeout_us = 100000);
+    Reply start_scan(int timeout_us = 100000);
+    Reply scan_status(int timeout_us = 100000);
+    Reply abort_scan(int timeout_us = 100000);
+    std::vector<ScanRecord> take_scan_records();
     void close();  // No implicit management or motor operations.
 
 private:
@@ -213,6 +263,7 @@ private:
     size_t poll_locked(int timeout_us, size_t max_frames);
     void observe_information(const Information& information);
     void accept_sample(const Sample& sample);
+    void release_reliable_pairs();
     void reset_timeline();
     std::vector<Measurement> take_samples();
     void ensure_open() const;
@@ -229,8 +280,14 @@ private:
     std::optional<uint32_t> start_fence_tick_;
     uint16_t period_ = 0;
     bool pending_start_ = false;
+    bool reliable_ = false, staged_scan_ = false, reliable_scan_required_ = false;
+    uint32_t reliable_next_ = 0, reliable_acked_ = 0;
+    std::map<uint32_t, Sample> reliable_base_;
+    std::map<uint32_t, ScanRecord> reliable_scan_;
     std::deque<Sample> pending_samples_;
     std::deque<Measurement> samples_;
+    std::deque<ScanRecord> scan_records_;
+    std::optional<uint32_t> scan_session_;
     std::deque<Reply> replies_;
     std::deque<Frame> other_;
     Diagnostics diagnostics_;

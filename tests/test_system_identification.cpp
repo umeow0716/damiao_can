@@ -491,10 +491,138 @@ void test_fast_rate_and_inactive_recovery() {
     check(recovery.read_samples().size() == 1 && peer->sent.size() == 3,
           "pending samples retained during recovery and START transmitted once");
 }
+void test_scan_management() {
+    auto transport = std::make_unique<Mock>();
+    auto* peer = transport.get();
+    SystemIdentification api(std::move(transport), 1);
+    uint32_t capture = 0, scan = 0;
+    bool active = false, lose = true, foreign = false;
+    peer->responder = [&](const auto& request) {
+        auto op = static_cast<Operation>(request[2]);
+        auto seq = request_sequence(request);
+        if (op == Operation::STATUS)
+            peer->frames.push_back(information(op, seq, capture, active));
+        else if (op == Operation::START) {
+            capture = seq;
+            active = true;
+            peer->frames.push_back(ack(op, seq));
+        } else if (op == Operation::SCAN_STATUS) {
+            Frame frame{response_id, true, CANFD_BRS, std::vector<uint8_t>(64), 0};
+            frame.payload[0] = 1;
+            frame.payload[1] = 0x83;
+            frame.payload[2] = 1;
+            frame.payload[3] = scan ? 3 : 1;
+            put_u32(frame, 4, seq);
+            put_u32(frame, 12, capture);
+            put_u32(frame, 16, scan + (foreign ? 1 : 0));
+            frame.payload[58] = scan ? 1 : 0;
+            peer->frames.push_back(frame);
+        } else if (op == Operation::SCAN_START) {
+            scan = seq;
+            if (!lose) peer->frames.push_back(ack(op, seq));
+        } else
+            peer->frames.push_back(ack(op, seq));
+    };
+    ScanConfig config;
+    config.lower = -.5;
+    config.upper = .5;
+    api.configure_scan(config, 1000);
+    check(peer->sent.size() == 11, "ten scan fields and baseline");
+    check(api.start(500, 1000).accepted, "capture for scan");
+    auto started = api.start_scan(1000);
+    check(started.scan && started.scan->scan_session == scan, "lost scan START ACK reconciled");
+    check(api.abort_scan(1000).accepted(), "owned scan abort");
+    auto count = peer->sent.size();
+    foreign = true;
+    expect_error<SessionError>([&] { api.abort_scan(1000); });
+    check(peer->sent.size() == count + 1, "foreign scan status only, no abort");
+    Frame frame{0x6F3, true, CANFD_BRS, std::vector<uint8_t>(64), 123};
+    frame.payload[0] = 1;
+    frame.payload[1] = 0x91;
+    frame.payload[2] = 1;
+    frame.payload[3] = 3;
+    put_u32(frame, 4, 8);
+    put_u32(frame, 12, capture);
+    put_u32(frame, 16, scan);
+    put_float(frame, 28, .1);
+    put_float(frame, 32, .2);
+    peer->frames.push_back(frame);
+    api.poll();
+    auto records = api.take_scan_records();
+    check(
+        records.size() == 1 && records[0].sequence == 8 && records[0].raw.payload == frame.payload,
+        "scan stream raw preservation");
+    frame.payload[3] = 99;
+    expect_error<ProtocolError>([&] { decode_scan_record(frame); });
+}
+void test_reliable_reordering() {
+    auto transport = std::make_unique<Mock>();
+    auto* peer = transport.get();
+    SystemIdentification api(std::move(transport), 1);
+    ScanConfig c;
+    c.lower = -.5;
+    c.upper = .5;
+    api.configure_scan(c, 1000);
+    auto started = api.start(500, 1000, true);
+    check(peer->sent.back()[3] == 2, "500 Hz reliable START option");
+    auto base = [&](uint32_t n) {
+        auto f = sample_fixture();
+        put_u32(f, 4, n);
+        put_u32(f, 8, 40 * (n + 1));
+        return f;
+    };
+    auto extension = [&](uint32_t n) {
+        Frame f{0x6F3, true, CANFD_BRS, std::vector<uint8_t>(64), 123};
+        f.payload[0] = 1;
+        f.payload[1] = 0x91;
+        f.payload[2] = 1;
+        f.payload[3] = 3;
+        put_u32(f, 4, n);
+        put_u32(f, 8, 40 * (n + 1));
+        put_u32(f, 12, started.session_id);
+        return f;
+    };
+    peer->frames.push_back(base(1));
+    peer->frames.push_back(extension(1));
+    peer->frames.push_back(base(0));
+    check(api.read_samples().empty(), "missing extension holds later samples for recovery");
+    check(api.replay_data(0, 1000).accepted(), "explicit replay request");
+    peer->frames.push_back(extension(0));
+    auto batch = api.read_samples();
+    auto scans = api.take_scan_records();
+    check(batch.size() == 2 && scans.size() == 2 && batch[0].sample.sequence == 0 &&
+              batch[1].sample.sequence == 1,
+          "recovered pairs delivered once in chronological order");
+    check(api.diagnostics().sequence_gaps == 0, "recovered loss does not create a timeline gap");
+    expect_error<SessionError>([&] { api.acknowledge_data(3, 1000); });
+    check(api.acknowledge_data(2, 1000).accepted(), "durable cumulative ACK");
+    check(request_sequence(peer->sent.back()) == (started.session_id ^ 2U),
+          "session-bound ACK token");
+    peer->frames.push_back(base(0));
+    peer->frames.push_back(extension(0));
+    peer->frames.push_back(base(1));
+    peer->frames.push_back(extension(1));
+    check(api.read_samples().empty() && api.take_scan_records().empty(),
+          "ACK-loss retransmissions deduplicated");
+    check(api.acknowledge_data(2, 1000).accepted(), "ACK retry idempotent");
+    auto generic = std::make_unique<Mock>();
+    auto* wire = generic.get();
+    SystemIdentification plain(std::move(generic), 1);
+    plain.start(1000, 1000, true);
+    check(wire->sent.back()[3] == 3, "1000 Hz reliable START option");
+    auto f = sample_fixture();
+    f.payload[60] = 20;
+    put_u32(f, 8, 20);
+    wire->frames.push_back(f);
+    check(plain.read_samples().size() == 1, "non-scan capture needs only base record");
+    check(plain.acknowledge_data(1, 1000).accepted(), "non-scan durable ACK");
+}
 }  // namespace
 
 int main() {
     try {
+        test_reliable_reordering();
+        test_scan_management();
         test_fixture_and_validation();
         test_management_demux();
         test_errors_and_start_recovery();
